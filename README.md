@@ -57,7 +57,7 @@ release gates fail if any operation exceeds its recorded reference.
 |---|---:|---|
 | `mul_div_floor(a, b, d)` | 11 | exact `⌊a·b/d⌋` when `a·b` fits one word (both inputs under `2^32`) |
 | `mul_div_ceil(a, b, d)` | 19 | exact `⌈a·b/d⌉`, same fast path |
-| `mul_div_floor`, wide operands | 161 | the same call when `a·b` needs 128 bits, measured on a worst-case chained workload and gated as its own row |
+| `mul_div_floor`, wide operands | 100 | the same call when `a·b` needs 128 bits, measured on a chained workload with a top-bit-set divisor and gated as its own row; a divisor needing normalization costs ~140 |
 | `isqrt(n)` | 147 | exact `⌊√n⌋` for any `u128` |
 | `sqrt_floor(v, s)` | 176 | exact `⌊√(v·s)⌋` |
 | `sqrt_ceil(v, s)` | 186 | exact `⌈√(v·s)⌉` |

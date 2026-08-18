@@ -33,14 +33,20 @@ pub(crate) fn div_rem_128_by_64(high: u64, low: u64, denominator: u64) -> (u64, 
     }
 
     // Knuth Algorithm D with 32-bit digits: on SBF a native division costs
-    // about two units, so two digit divisions with bounded fixups beat the
-    // reciprocal machinery built for targets where division is expensive.
-    let shift = denominator.leading_zeros();
-    let normalized = denominator << shift;
-    let (n2, n10) = if shift == 0 {
-        (high, low)
+    // about as much as any instruction, so two digit divisions with bounded
+    // fixups beat reciprocal machinery built for targets where division is
+    // expensive. `leading_zeros` lowers to a ~20-instruction software
+    // sequence here, so an already-normalized divisor skips it outright.
+    let (shift, normalized, n2, n10) = if denominator >> 63 != 0 {
+        (0, denominator, high, low)
     } else {
-        ((high << shift) | (low >> (64 - shift)), low << shift)
+        let shift = denominator.leading_zeros();
+        (
+            shift,
+            denominator << shift,
+            (high << shift) | (low >> (64 - shift)),
+            low << shift,
+        )
     };
     let (q1, r1) = divide_digit(n2, n10 >> 32, normalized);
     let (q0, r0) = divide_digit(r1, n10 & 0xffff_ffff, normalized);
@@ -238,10 +244,10 @@ pub(crate) fn mul_div(a: u64, b: u64, denominator: u64) -> Result<(u64, u64), Ma
     if let Some(result) = mul_div_narrow(a, b, denominator) {
         return result;
     }
-    // The native u128 product lowers better than the pair form in this
-    // context (measured); the mulhi-heavy kernels keep the pair form.
-    let product = u128::from(a) * u128::from(b);
-    let (high, low) = ((product >> 64) as u64, product as u64);
+    // The pair widening stays inline; the native u128 product lowers to a
+    // compiler-builtin call with a stack-passed result on SBF (measured in
+    // the disassembly), which costs more than the four partial products.
+    let (high, low) = widening_mul(a, b);
     if let Some(error) = mul_div_error(high, denominator) {
         return Err(error);
     }
