@@ -51,25 +51,30 @@ through LiteSVM with a matched control per operation; three repetitions
 reproduce every number exactly. `make benchmark` regenerates the table, and
 release gates fail if any operation exceeds its recorded reference.
 
+Every operation is measured in two regimes. **Narrow** uses word-sized
+operands at a `10^9` scale — products fit one machine word and the fast
+paths apply. **Wide** uses operands near the top of `u64` at a `10^18`
+scale — every intermediate crosses 128 bits and the cost is dominated by
+the 128-by-64 divider. The wide column is why this crate exists.
+
 ### Core
 
-| function | CU | returns |
-|---|---:|---|
-| `mul_div_floor(a, b, d)` | 11 | exact `⌊a·b/d⌋` when `a·b` fits one word (both inputs under `2^32`) |
-| `mul_div_ceil(a, b, d)` | 19 | exact `⌈a·b/d⌉`, same fast path |
-| `mul_div_floor`, wide operands | 100 | the same call when `a·b` needs 128 bits, measured on a chained workload with a top-bit-set divisor and gated as its own row; a divisor needing normalization costs ~140 |
-| `isqrt(n)` | 147 | exact `⌊√n⌋` for any `u128` |
-| `sqrt_floor(v, s)` | 176 | exact `⌊√(v·s)⌋` |
-| `sqrt_ceil(v, s)` | 186 | exact `⌈√(v·s)⌉` |
-| `exp2_lower(e, s)` / `exp2_upper(e, s)` | 249 / 274 | one-sided bounds on `2^(e/s)`, negative exponents included |
-| `log2_lower(v, s)` / `log2_upper(v, s)` | 90 / 98 | one-sided bounds on `log2(v/s)`, signed result; measured at scale 1, where log2 is cheap — see `log2_bounds` for the realistic-scale cost |
-| `pow_lower(b, e, s)` / `pow_upper(b, e, s)` | 611 / 702 | one-sided bounds on `(b/s)^(e/s)`; exact integer exponents route to `powi` |
-| `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 105 / 178 | one-sided bounds on `(b/s)^n` by directed squaring |
-| `compound_lower(r, n, t, s)` / `compound_upper(r, n, t, s)` | 1 044 / 1 075 | one-sided bounds on `(1 + (r/s)/n)^t` |
-| `exp2_bounds(e, s)` | 501 | both exp2 bounds, one pass |
-| `log2_bounds(v, s)` | 714 | both log2 bounds in one pass at a `10^9` scale, where the two single calls cost 918 together |
-| `pow_bounds(b, e, s)` | 1 208 | both pow bounds, one pass |
-| `compound_bounds(r, n, t, s)` | 1 974 | both compound bounds, one pass |
+| function | narrow | wide | returns |
+|---|---:|---:|---|
+| `mul_div_floor(a, b, d)` | 11 | 106 | exact `⌊a·b/d⌋`; wide is measured over a top-bit-set divisor, and a divisor needing normalization costs ~140 |
+| `mul_div_ceil(a, b, d)` | 19 | 125 | exact `⌈a·b/d⌉` |
+| `isqrt(n)` | 147 | 255 | exact `⌊√n⌋` for any `u128`; wide is a 126-bit value |
+| `sqrt_floor(v, s)` | 176 | 283 | exact `⌊√(v·s)⌋` |
+| `sqrt_ceil(v, s)` | 186 | 293 | exact `⌈√(v·s)⌉` |
+| `exp2_lower(e, s)` / `exp2_upper(e, s)` | 249 / 274 | 305 / 330 | one-sided bounds on `2^(e/s)`, negative exponents included |
+| `log2_lower(v, s)` / `log2_upper(v, s)` | 438 / 486 | 450 / 498 | one-sided bounds on `log2(v/s)`, signed result |
+| `pow_lower(b, e, s)` / `pow_upper(b, e, s)` | 678 / 777 | 771 / 876 | one-sided bounds on `(b/s)^(e/s)`; exact integer exponents route to `powi` |
+| `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 110 / 183 | 1 147 / 1 235 | one-sided bounds on `(b/s)^n` by directed squaring; every wide squaring step pays the full divider |
+| `compound_lower(r, n, t, s)` / `compound_upper(r, n, t, s)` | 1 568 / 1 604 | 1 528 / 1 563 | one-sided bounds on `(1 + (r/s)/n)^t` |
+| `exp2_bounds(e, s)` | 501 | 554 | both exp2 bounds, one pass — bit-identical to the two calls, cheaper |
+| `log2_bounds(v, s)` | 714 | 736 | both log2 bounds, one pass |
+| `pow_bounds(b, e, s)` | 1 211 | 1 324 | both pow bounds, one pass |
+| `compound_bounds(r, n, t, s)` | 1 975 | 1 938 | both compound bounds, one pass |
 
 
 ### `defi` — stateless recipes over primitive integers
@@ -77,22 +82,22 @@ release gates fail if any operation exceeds its recorded reference.
 Each recipe names the party its rounding protects. Callers own asset
 identity, decimals, storage, and error conversion.
 
-| function | CU | returns |
-|---|---:|---|
-| `fee::net_of_fee(amount, bps)` | 29 | `(net, fee)` with `net + fee == amount`, fee rounded against the payer |
-| `amm::quote_exact_in(rin, rout, in, bps)` | 63 | constant-product output, floored — the pool never over-pays |
-| `amm::quote_exact_out(rin, rout, out, bps)` | 68 | least input whose replay through `quote_exact_in` reaches `out` |
-| `amm::initial_lp_shares_floor(a, b)` | 160 | `⌊√(a·b)⌋` bootstrap shares — never over-mints |
-| `lending::utilization_bps(borrowed, supplied)` | 17 | utilization in basis points, floored |
-| `lending::borrow_rate_bps(u, base, s1, s2, kink)` | 57 | two-leg kinked rate, ceiled — borrowers never underpay the curve |
-| `oracle::price_bounds_scaled(price, conf, expo, s)` | 225 | outward bounds on `(price ± conf)·10^expo`, floored at zero |
-| `schedule::vested_floor(total, start, cliff, dur, now)` | 26 | cliffed linear vesting, floored — never over-releases |
-| `schedule::linear_interp_floor(from, to, t, dur)` | 28 | clamped interpolation, below the true line |
-| `schedule::linear_interp_ceil(from, to, t, dur)` | 23 | clamped interpolation, above the true line |
-| `staking::reward_index_accrue_lower(i, r, staked, s)` | 29 | index accrual, floored |
-| `staking::reward_index_accrue_upper(i, r, staked, s)` | 37 | index accrual, ceiled |
-| `staking::reward_index_accrue(lo, hi, r, staked, s)` | 48 | both endpoints from one division |
-| `staking::rewards_owed_floor(staked, now, snap, s)` | 23 | rewards owed, floored — the pool never over-pays |
+| function | narrow | wide | returns |
+|---|---:|---:|---|
+| `fee::net_of_fee(amount, bps)` | 30 | 43 | `(net, fee)` with `net + fee == amount`, fee rounded against the payer |
+| `amm::quote_exact_in(rin, rout, in, bps)` | 68 | 166 | constant-product output, floored — the pool never over-pays |
+| `amm::quote_exact_out(rin, rout, out, bps)` | 69 | 336 | least input whose replay through `quote_exact_in` reaches `out` |
+| `amm::initial_lp_shares_floor(a, b)` | 160 | 270 | `⌊√(a·b)⌋` bootstrap shares — never over-mints |
+| `lending::utilization_bps(borrowed, supplied)` | 16 | 142 | utilization in basis points, floored |
+| `lending::borrow_rate_bps(u, base, s1, s2, kink)` | 57 | 75 | two-leg kinked rate, ceiled — borrowers never underpay the curve |
+| `oracle::price_bounds_scaled(price, conf, expo, s)` | 224 | 637 | outward bounds on `(price ± conf)·10^expo`, floored at zero |
+| `schedule::vested_floor(total, start, cliff, dur, now)` | 26 | 171 | cliffed linear vesting, floored — never over-releases |
+| `schedule::linear_interp_floor(from, to, t, dur)` | 29 | 177 | clamped interpolation, below the true line |
+| `schedule::linear_interp_ceil(from, to, t, dur)` | 25 | 174 | clamped interpolation, above the true line |
+| `staking::reward_index_accrue_lower(i, r, staked, s)` | 30 | 181 | index accrual, floored |
+| `staking::reward_index_accrue_upper(i, r, staked, s)` | 39 | 202 | index accrual, ceiled |
+| `staking::reward_index_accrue(lo, hi, r, staked, s)` | 48 | 215 | both endpoints from one division |
+| `staking::rewards_owed_floor(staked, now, snap, s)` | 24 | 172 | rewards owed, floored — the pool never over-pays |
 
 ```rust
 use svm_math::defi::{amm, fee};

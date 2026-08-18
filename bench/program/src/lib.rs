@@ -23,10 +23,10 @@ use solana_program::{
     account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, pubkey::Pubkey,
 };
 use svm_math::{
-    compound_bounds, compound_lower, compound_upper, exp2_bounds, log2_bounds, pow_bounds,
+    compound_bounds, compound_lower, compound_upper,
     defi::{amm, fee, lending, oracle, schedule, staking},
-    exp2_lower, exp2_upper, isqrt, log2_lower, log2_upper, mul_div_ceil, mul_div_floor, pow_lower,
-    pow_upper, powi_lower, powi_upper, sqrt_ceil, sqrt_floor,
+    exp2_bounds, exp2_lower, exp2_upper, isqrt, log2_bounds, log2_lower, log2_upper, mul_div_ceil,
+    mul_div_floor, pow_bounds, pow_lower, pow_upper, powi_lower, powi_upper, sqrt_ceil, sqrt_floor,
 };
 
 entrypoint!(process);
@@ -34,6 +34,8 @@ entrypoint!(process);
 const ITERATIONS: u64 = 100;
 #[allow(dead_code, reason = "unused by some single-family size builds")]
 const SCALE: u64 = 1_000_000_000;
+#[allow(dead_code, reason = "unused by some single-family size builds")]
+const WIDE_SCALE: u64 = 1_000_000_000_000_000_000;
 #[allow(dead_code, reason = "unused by some single-family size builds")]
 const WIDE_MUL_B: u64 = 0x8000_0000_0000_3039;
 #[allow(dead_code, reason = "unused by some single-family size builds")]
@@ -293,7 +295,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-wide"
         ))]
-        100 | 101 | 128 | 130 | 131 | 158 => wide(operation, iterations),
+        100 | 101 | 128 | 130 | 131 | 158 | 164 | 194 => wide(operation, iterations),
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -312,7 +314,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-sqrt"
         ))]
-        102..=104 | 132..=134 => sqrt(operation, iterations),
+        102..=104 | 132..=134 | 165..=167 | 195..=197 => sqrt(operation, iterations),
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -331,7 +333,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-exp2"
         ))]
-        105 | 106 | 129 | 135 | 136 | 159 => exp2(operation, iterations),
+        105 | 106 | 129 | 135 | 136 | 159 | 168..=170 | 198..=200 => exp2(operation, iterations),
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -350,7 +352,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-log2"
         ))]
-        107 | 108 | 137 | 138 | 160 | 190 => log2(operation, iterations),
+        107 | 108 | 137 | 138 | 160 | 190 | 171..=173 | 201..=203 => log2(operation, iterations),
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -369,7 +371,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-pow"
         ))]
-        109 | 110 | 139 | 140 | 161 | 191 => pow(operation, iterations),
+        109 | 110 | 139 | 140 | 161 | 191 | 174..=176 | 204..=206 => pow(operation, iterations),
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -388,7 +390,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-powi"
         ))]
-        111 | 112 | 141 | 142 => powi(operation, iterations),
+        111 | 112 | 141 | 142 | 177 | 178 | 207 | 208 => powi(operation, iterations),
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -407,7 +409,9 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-compound"
         ))]
-        113 | 114 | 143 | 144 | 162 | 192 => compound(operation, iterations),
+        113 | 114 | 143 | 144 | 162 | 192 | 179..=181 | 209..=211 => {
+            compound(operation, iterations)
+        }
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -426,7 +430,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-defi_fee"
         ))]
-        115 | 145 => defi_fee(operation, iterations),
+        115 | 145 | 182 | 212 => defi_fee(operation, iterations),
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -445,7 +449,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-defi_amm"
         ))]
-        116..=118 | 146..=148 => defi_amm(operation, iterations),
+        116..=118 | 146..=148 | 183..=185 | 213..=215 => defi_amm(operation, iterations),
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -464,7 +468,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-defi_lending"
         ))]
-        119 | 120 | 149 | 150 => defi_lending(operation, iterations),
+        119 | 120 | 149 | 150 | 186 | 187 | 216 | 217 => defi_lending(operation, iterations),
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -483,7 +487,9 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-defi_staking"
         ))]
-        121..=123 | 151..=153 | 163 | 193 => defi_staking(operation, iterations),
+        121..=123 | 151..=153 | 163 | 193 | 188 | 189 | 218 | 219 | 31 | 32 | 61 | 62 => {
+            defi_staking(operation, iterations)
+        }
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -502,7 +508,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-defi_oracle"
         ))]
-        124 | 154 => defi_oracle(operation, iterations),
+        124 | 154 | 33 | 63 => defi_oracle(operation, iterations),
         #[cfg(any(
             not(any(
                 feature = "size-wide",
@@ -521,7 +527,7 @@ pub fn process(_program_id: &Pubkey, _accounts: &[AccountInfo], data: &[u8]) -> 
             )),
             feature = "size-defi_schedule"
         ))]
-        125..=127 | 155..=157 => defi_schedule(operation, iterations),
+        125..=127 | 155..=157 | 34..=36 | 64..=66 => defi_schedule(operation, iterations),
         _ => {}
     }
     Ok(())
@@ -571,11 +577,17 @@ fn wide(operation: u8, iterations: u64) {
             let denominator = black_box(1_003);
             Ok::<_, svm_math::MathError>(a ^ b ^ denominator).unwrap()
         },
-        158 => |index| {
+        158 | 194 => |index| {
             let a = black_box(u64::MAX - index);
             let b = black_box(WIDE_MUL_B);
             let denominator = black_box(WIDE_MUL_DENOMINATOR);
             Ok::<_, svm_math::MathError>(a ^ b ^ denominator).unwrap()
+        },
+        164 => |index| {
+            let a = black_box(u64::MAX - index);
+            let b = black_box(WIDE_MUL_B);
+            let denominator = black_box(WIDE_MUL_DENOMINATOR);
+            mul_div_ceil(a, b, denominator).unwrap()
         }
     });
 }
@@ -622,6 +634,32 @@ fn sqrt(operation: u8, iterations: u64) {
         },
         134 => |index| {
             let value = black_box(2_000_000_000 + index);
+            Ok::<_, svm_math::MathError>(value).unwrap()
+        },
+        165 => |index| {
+            let value =
+                black_box(u128::from(9_000_000_000_000_000_000 - index) * 9_000_000_000_000_000_000);
+            isqrt(value) as u64
+        },
+        195 => |index| {
+            let value =
+                black_box(u128::from(9_000_000_000_000_000_000 - index) * 9_000_000_000_000_000_000);
+            value as u64
+        },
+        166 => |index| {
+            let value = black_box(9_000_000_000_000_000_000 + index);
+            sqrt_floor(value, SCALE).unwrap()
+        },
+        196 => |index| {
+            let value = black_box(9_000_000_000_000_000_000 + index);
+            Ok::<_, svm_math::MathError>(value).unwrap()
+        },
+        167 => |index| {
+            let value = black_box(9_000_000_000_000_000_000 + index);
+            sqrt_ceil(value, SCALE).unwrap()
+        },
+        197 => |index| {
+            let value = black_box(9_000_000_000_000_000_000 + index);
             Ok::<_, svm_math::MathError>(value).unwrap()
         }
     });
@@ -671,6 +709,23 @@ fn exp2(operation: u8, iterations: u64) {
         159 => |index| {
             let value = black_box(500_000_000 + index) as i64;
             Ok::<_, svm_math::MathError>(value).unwrap() as u64
+        },
+        168 => |index| {
+            let value = black_box(500_000_000_000_000_000 + index) as i64;
+            exp2_lower(value, WIDE_SCALE).unwrap()
+        },
+        169 => |index| {
+            let value = black_box(500_000_000_000_000_000 + index) as i64;
+            exp2_upper(value, WIDE_SCALE).unwrap()
+        },
+        170 => |index| {
+            let value = black_box(500_000_000_000_000_000 + index) as i64;
+            let (lower, upper) = exp2_bounds(value, WIDE_SCALE).unwrap();
+            lower ^ upper
+        },
+        198 | 199 | 200 => |index| {
+            let value = black_box(500_000_000_000_000_000 + index) as i64;
+            Ok::<_, svm_math::MathError>(value).unwrap() as u64
         }
     });
 }
@@ -696,8 +751,8 @@ fn exp2(operation: u8, iterations: u64) {
 fn log2(operation: u8, iterations: u64) {
     dispatch_fold!(operation, iterations, {
         107 => |index| {
-            let value = black_box(2 + index % 2);
-            log2_lower(value, 1).unwrap() as u64
+            let value = black_box(977_000_000_000 + index);
+            log2_lower(value, SCALE).unwrap() as u64
         },
         160 => |index| {
             let value = black_box(977_000_000_000 + index);
@@ -709,16 +764,34 @@ fn log2(operation: u8, iterations: u64) {
             Ok::<_, svm_math::MathError>(value).unwrap()
         },
         137 => |index| {
-            let value = black_box(2 + index % 2);
+            let value = black_box(977_000_000_000 + index);
             let _ = black_box(value);
             Ok::<_, svm_math::MathError>(1_i64).unwrap() as u64
         },
         108 => |index| {
-            let value = black_box(2 + index % 2);
-            log2_upper(value, 1).unwrap() as u64
+            let value = black_box(977_000_000_000 + index);
+            log2_upper(value, SCALE).unwrap() as u64
         },
         138 => |index| {
-            let value = black_box(2 + index % 2);
+            let value = black_box(977_000_000_000 + index);
+            let _ = black_box(value);
+            Ok::<_, svm_math::MathError>(1_i64).unwrap() as u64
+        },
+        171 => |index| {
+            let value = black_box(9_770_000_000_000_000_000 + index);
+            log2_lower(value, WIDE_SCALE).unwrap() as u64
+        },
+        172 => |index| {
+            let value = black_box(9_770_000_000_000_000_000 + index);
+            log2_upper(value, WIDE_SCALE).unwrap() as u64
+        },
+        173 => |index| {
+            let value = black_box(9_770_000_000_000_000_000 + index);
+            let (lower, upper) = log2_bounds(value, WIDE_SCALE).unwrap();
+            (lower as u64) ^ (upper as u64)
+        },
+        201 | 202 | 203 => |index| {
+            let value = black_box(9_770_000_000_000_000_000 + index);
             let _ = black_box(value);
             Ok::<_, svm_math::MathError>(1_i64).unwrap() as u64
         }
@@ -778,6 +851,28 @@ fn pow(operation: u8, iterations: u64) {
             let exponent = black_box(500_000_000);
             let _ = black_box(exponent);
             Ok::<_, svm_math::MathError>(value).unwrap()
+        },
+        174 => |index| {
+            let value = black_box(2_000_000_000_000_000_000 + index);
+            let exponent = black_box(500_000_000_000_000_000);
+            pow_lower(value, exponent, WIDE_SCALE).unwrap()
+        },
+        175 => |index| {
+            let value = black_box(2_000_000_000_000_000_000 + index);
+            let exponent = black_box(500_000_000_000_000_000);
+            pow_upper(value, exponent, WIDE_SCALE).unwrap()
+        },
+        176 => |index| {
+            let value = black_box(2_000_000_000_000_000_000 + index);
+            let exponent = black_box(500_000_000_000_000_000);
+            let (lower, upper) = pow_bounds(value, exponent, WIDE_SCALE).unwrap();
+            lower ^ upper
+        },
+        204 | 205 | 206 => |index| {
+            let value = black_box(2_000_000_000_000_000_000 + index);
+            let exponent = black_box(500_000_000_000_000_000u64);
+            let _ = black_box(exponent);
+            Ok::<_, svm_math::MathError>(value).unwrap()
         }
     });
 }
@@ -820,6 +915,22 @@ fn powi(operation: u8, iterations: u64) {
         },
         142 => |index| {
             let value = black_box(1_000_100_000 + index);
+            let exponent = black_box(10 + index);
+            let _ = black_box(exponent);
+            Ok::<_, svm_math::MathError>(value).unwrap()
+        },
+        177 => |index| {
+            let value = black_box(1_000_100_000_000_000_000 + index);
+            let exponent = black_box(10 + index);
+            powi_lower(value, exponent, WIDE_SCALE).unwrap()
+        },
+        178 => |index| {
+            let value = black_box(1_000_100_000_000_000_000 + index);
+            let exponent = black_box(10 + index);
+            powi_upper(value, exponent, WIDE_SCALE).unwrap()
+        },
+        207 | 208 => |index| {
+            let value = black_box(1_000_100_000_000_000_000 + index);
             let exponent = black_box(10 + index);
             let _ = black_box(exponent);
             Ok::<_, svm_math::MathError>(value).unwrap()
@@ -882,6 +993,32 @@ fn compound(operation: u8, iterations: u64) {
             let _periods_per_year = 63_072_000;
             let elapsed_periods = 63_072_000 + index;
             Ok::<_, svm_math::MathError>(rate).unwrap() ^ elapsed_periods
+        },
+        179 => |index| {
+            let rate = 70_000_000_000_000_000;
+            let periods_per_year = 63_072_000;
+            let elapsed_periods = 63_072_000 + index;
+            compound_lower(rate, periods_per_year, elapsed_periods, WIDE_SCALE).unwrap()
+        },
+        180 => |index| {
+            let rate = 70_000_000_000_000_000;
+            let periods_per_year = 63_072_000;
+            let elapsed_periods = 63_072_000 + index;
+            compound_upper(rate, periods_per_year, elapsed_periods, WIDE_SCALE).unwrap()
+        },
+        181 => |index| {
+            let rate = 70_000_000_000_000_000;
+            let periods_per_year = 63_072_000;
+            let elapsed_periods = 63_072_000 + index;
+            let (lower, upper) =
+                compound_bounds(rate, periods_per_year, elapsed_periods, WIDE_SCALE).unwrap();
+            lower ^ upper
+        },
+        209 | 210 | 211 => |index| {
+            let rate = 70_000_000_000_000_000;
+            let _periods_per_year = 63_072_000;
+            let elapsed_periods = 63_072_000 + index;
+            Ok::<_, svm_math::MathError>(rate).unwrap() ^ elapsed_periods
         }
     });
 }
@@ -914,6 +1051,20 @@ fn defi_fee(operation: u8, iterations: u64) {
         },
         145 => |index| {
             let amount = black_box(1_000_000 + index);
+            let rate = black_box(30_u16);
+            Ok::<_, svm_math::MathError>((amount, rate))
+                .unwrap()
+                .0
+                ^ u64::from(rate)
+        },
+        182 => |index| {
+            let amount = black_box(5_000_000_000_000_000_000 + index);
+            let rate = black_box(30_u16);
+            let (net, fee) = fee::net_of_fee(amount, rate).unwrap();
+            net ^ fee
+        },
+        212 => |index| {
+            let amount = black_box(5_000_000_000_000_000_000 + index);
             let rate = black_box(30_u16);
             Ok::<_, svm_math::MathError>((amount, rate))
                 .unwrap()
@@ -986,6 +1137,40 @@ fn defi_amm(operation: u8, iterations: u64) {
             let base = 4_000_000 + index;
             let quote = 9_000_000;
             base ^ quote
+        },
+        183 => |index| {
+            let reserve_in = 9_000_000_000_000_000_000;
+            let reserve_out = 8_000_000_000_000_000_000;
+            let amount = 1_000_000_000_000_000_000 + index;
+            let rate = 30_u16;
+            amm::quote_exact_in(reserve_in, reserve_out, amount, rate).unwrap()
+        },
+        184 => |index| {
+            let reserve_in = 9_000_000_000_000_000_000;
+            let reserve_out = 8_000_000_000_000_000_000;
+            let amount = 1_000_000_000_000_000_000 + index;
+            let rate = 30_u16;
+            amm::quote_exact_out(reserve_in, reserve_out, amount, rate).unwrap()
+        },
+        213 | 214 => |index| {
+            let reserve_in = 9_000_000_000_000_000_000;
+            let reserve_out = 8_000_000_000_000_000_000;
+            let amount = 1_000_000_000_000_000_000 + index;
+            let rate = 30_u16;
+            Ok::<_, svm_math::MathError>(
+                reserve_in ^ reserve_out ^ amount ^ u64::from(rate),
+            )
+            .unwrap()
+        },
+        185 => |index| {
+            let base = 4_000_000_000_000_000_000 + index;
+            let quote = 9_000_000_000_000_000_000;
+            amm::initial_lp_shares_floor(base, quote)
+        },
+        215 => |index| {
+            let base = 4_000_000_000_000_000_000 + index;
+            let quote = 9_000_000_000_000_000_000;
+            base ^ quote
         }
     });
 }
@@ -1034,6 +1219,43 @@ fn defi_lending(operation: u8, iterations: u64) {
         },
         150 => |index| {
             let config = black_box((100, 500, 2_000, 8_000));
+            let utilization = black_box(8_001 + index % 100);
+            (Ok::<_, svm_math::MathError>(config).unwrap() == config) as u64 ^ utilization
+        },
+        186 => |index| {
+            let borrowed = black_box(7_000_000_000_000_000_000 + index);
+            let supplied = black_box(9_000_000_000_000_000_000);
+            lending::utilization_bps(borrowed, supplied).unwrap()
+        },
+        216 => |index| {
+            let borrowed = black_box(7_000_000_000_000_000_000 + index);
+            let supplied = black_box(9_000_000_000_000_000_000);
+            Ok::<_, svm_math::MathError>(borrowed ^ supplied).unwrap()
+        },
+        187 => |index| {
+            let config = black_box((
+                100_000_000_000_000_000,
+                500_000_000_000_000_000,
+                2_000_000_000_000_000_000,
+                8_000,
+            ));
+            let utilization = black_box(8_001 + index % 100);
+            lending::borrow_rate_bps(
+                utilization,
+                config.0,
+                config.1,
+                config.2,
+                config.3,
+            )
+            .unwrap()
+        },
+        217 => |index| {
+            let config = black_box((
+                100_000_000_000_000_000u64,
+                500_000_000_000_000_000u64,
+                2_000_000_000_000_000_000u64,
+                8_000,
+            ));
             let utilization = black_box(8_001 + index % 100);
             (Ok::<_, svm_math::MathError>(config).unwrap() == config) as u64 ^ utilization
         }
@@ -1126,6 +1348,70 @@ fn defi_staking(operation: u8, iterations: u64) {
             let snapshot = black_box(1_250_000_000);
             let _ = black_box((now, snapshot));
             Ok::<_, svm_math::MathError>(staked).unwrap()
+        },
+        188 => |index| {
+            let index_value = black_box(1_250_000_000_000_000_000);
+            let reward = black_box(1_000_000_000_000 + index);
+            let stake = black_box(100_000_000_000_000);
+            staking::reward_index_accrue_lower(index_value, reward, stake, WIDE_SCALE)
+                .unwrap()
+                ^ reward
+                ^ stake
+        },
+        189 => |index| {
+            let index_value = black_box(1_250_000_000_000_000_000);
+            let reward = black_box(1_000_000_000_000 + index);
+            let stake = black_box(100_000_000_000_000);
+            staking::reward_index_accrue_upper(index_value, reward, stake, WIDE_SCALE)
+                .unwrap()
+                ^ reward
+                ^ stake
+        },
+        218 | 219 => |index| {
+            let index_value = black_box(1_250_000_000_000_000_000);
+            let reward = black_box(1_000_000_000_000 + index);
+            let stake = black_box(100_000_000_000_000);
+            Ok::<_, svm_math::MathError>((index_value, reward, stake))
+                .unwrap()
+                .0
+                ^ reward
+                ^ stake
+        },
+        31 => |index| {
+            let index_lower = black_box(1_250_000_000_000_000_000);
+            let index_upper = black_box(1_250_000_000_000_001_000);
+            let reward = black_box(1_000_000_000_000 + index);
+            let stake = black_box(100_000_000_000_000);
+            let (lower, upper) = staking::reward_index_accrue(
+                index_lower,
+                index_upper,
+                reward,
+                stake,
+                WIDE_SCALE,
+            )
+            .unwrap();
+            lower ^ upper
+        },
+        61 => |index| {
+            let index_lower = black_box(1_250_000_000_000_000_000u64);
+            let index_upper = black_box(1_250_000_000_000_001_000u64);
+            let reward = black_box(1_000_000_000_000 + index);
+            let stake = black_box(100_000_000_000_000u64);
+            let _ = black_box((index_lower, index_upper, stake));
+            Ok::<_, svm_math::MathError>(reward).unwrap()
+        },
+        32 => |index| {
+            let staked = black_box(1_000_000_000_000_000_000 + index);
+            let now = black_box(1_300_000_000_000_000_000);
+            let snapshot = black_box(1_250_000_000_000_000_000);
+            staking::rewards_owed_floor(staked, now, snapshot, WIDE_SCALE).unwrap()
+        },
+        62 => |index| {
+            let staked = black_box(1_000_000_000_000_000_000 + index);
+            let now = black_box(1_300_000_000_000_000_000u64);
+            let snapshot = black_box(1_250_000_000_000_000_000u64);
+            let _ = black_box((now, snapshot));
+            Ok::<_, svm_math::MathError>(staked).unwrap()
         }
     });
 }
@@ -1162,6 +1448,22 @@ fn defi_oracle(operation: u8, iterations: u64) {
             let price = black_box(20_000_000 + index as i64);
             let confidence = black_box(100_000u64);
             let exponent = black_box(-6i32);
+            let (price, confidence, exponent) =
+                Ok::<_, svm_math::MathError>((price, confidence, exponent)).unwrap();
+            price as u64 ^ confidence ^ exponent.unsigned_abs() as u64
+        },
+        33 => |index| {
+            let price = black_box(9_000_000_000_000_000_000 + index as i64);
+            let confidence = black_box(1_000_000_000_000_000_000u64);
+            let exponent = black_box(-19i32);
+            let (lower, upper) =
+                oracle::price_bounds_scaled(price, confidence, exponent, WIDE_SCALE).unwrap();
+            lower ^ upper
+        },
+        63 => |index| {
+            let price = black_box(9_000_000_000_000_000_000 + index as i64);
+            let confidence = black_box(1_000_000_000_000_000_000u64);
+            let exponent = black_box(-19i32);
             let (price, confidence, exponent) =
                 Ok::<_, svm_math::MathError>((price, confidence, exponent)).unwrap();
             price as u64 ^ confidence ^ exponent.unsigned_abs() as u64
@@ -1239,6 +1541,49 @@ fn defi_schedule(operation: u8, iterations: u64) {
                 ^ to
                 ^ elapsed
                 ^ duration
+        },
+        34 => |index| {
+            let total = black_box(9_000_000_000_000_000_000);
+            let start = black_box(1_000_000_000_000_000_000);
+            let cliff = black_box(1_000_000_000_000_000_000);
+            let duration = black_box(9_000_000_000_000_000_000);
+            let now = black_box(6_000_000_000_000_000_000 + index);
+            schedule::vested_floor(total, start, cliff, duration, now).unwrap()
+        },
+        64 => |index| {
+            let total = black_box(9_000_000_000_000_000_000);
+            let start = black_box(1_000_000_000_000_000_000u64);
+            let cliff = black_box(1_000_000_000_000_000_000u64);
+            let duration = black_box(9_000_000_000_000_000_000u64);
+            let now = black_box(6_000_000_000_000_000_000 + index);
+            let _ = black_box((start, cliff, duration));
+            Ok::<_, svm_math::MathError>((total, now)).unwrap().0 ^ now
+        },
+        35 => |index| {
+            let from = black_box(0);
+            let to = black_box(9_000_000_000_000_000_000);
+            let elapsed = black_box(5_000_000_000_000_000_000 + index);
+            let duration = black_box(9_000_000_000_000_000_000);
+            schedule::linear_interp_floor(from, to, elapsed, duration).unwrap()
+        },
+        36 => |index| {
+            let from = black_box(9_000_000_000_000_000_000);
+            let to = black_box(0);
+            let elapsed = black_box(5_000_000_000_000_000_000 + index);
+            let duration = black_box(9_000_000_000_000_000_000);
+            schedule::linear_interp_ceil(from, to, elapsed, duration).unwrap()
+        },
+        65 | 66 => |index| {
+            let from = black_box(9_000_000_000_000_000_000);
+            let to = black_box(0);
+            let elapsed = black_box(5_000_000_000_000_000_000 + index);
+            let duration = black_box(9_000_000_000_000_000_000);
+            Ok::<_, svm_math::MathError>((from, to, elapsed, duration))
+                .unwrap()
+                .0
+                ^ to
+                ^ elapsed
+                ^ duration
         }
     });
 }
@@ -1268,7 +1613,137 @@ fn libcall_self_check(seed: u64) {
 
 #[cfg(test)]
 mod tests {
-    use super::{ITERATIONS, WIDE_MUL_B, WIDE_MUL_DENOMINATOR};
+    use super::{ITERATIONS, WIDE_MUL_B, WIDE_MUL_DENOMINATOR, WIDE_SCALE};
+
+    /// Every wide-row workload must complete (the on-chain unwrap cannot
+    /// panic) and, where the row claims the 128-by-64 division path, its
+    /// product must genuinely exceed one word.
+    #[test]
+    fn wide_workloads_are_in_domain_and_wide() {
+        let wide = |a: u64, b: u64| (u128::from(a) * u128::from(b)) >> 64 != 0;
+        for index in 0..ITERATIONS {
+            svm_math::mul_div_ceil(u64::MAX - index, WIDE_MUL_B, WIDE_MUL_DENOMINATOR).unwrap();
+
+            let square = u128::from(9_000_000_000_000_000_000 - index) * 9_000_000_000_000_000_000;
+            assert_ne!(square >> 64, 0);
+            svm_math::isqrt(square);
+            assert!(wide(9_000_000_000_000_000_000 + index, super::SCALE));
+            svm_math::sqrt_floor(9_000_000_000_000_000_000 + index, super::SCALE).unwrap();
+            svm_math::sqrt_ceil(9_000_000_000_000_000_000 + index, super::SCALE).unwrap();
+
+            let exp2_value = (500_000_000_000_000_000 + index) as i64;
+            svm_math::exp2_bounds(exp2_value, WIDE_SCALE).unwrap();
+            svm_math::log2_bounds(9_770_000_000_000_000_000 + index, WIDE_SCALE).unwrap();
+            svm_math::log2_bounds(977_000_000_000 + index, super::SCALE).unwrap();
+            svm_math::pow_bounds(
+                2_000_000_000_000_000_000 + index,
+                500_000_000_000_000_000,
+                WIDE_SCALE,
+            )
+            .unwrap();
+            svm_math::powi_upper(1_000_100_000_000_000_000 + index, 10 + index, WIDE_SCALE)
+                .unwrap();
+            svm_math::compound_bounds(
+                70_000_000_000_000_000,
+                63_072_000,
+                63_072_000 + index,
+                WIDE_SCALE,
+            )
+            .unwrap();
+
+            assert!(wide(5_000_000_000_000_000_000 + index, 30));
+            svm_math::defi::fee::net_of_fee(5_000_000_000_000_000_000 + index, 30).unwrap();
+            svm_math::defi::amm::quote_exact_in(
+                9_000_000_000_000_000_000,
+                8_000_000_000_000_000_000,
+                1_000_000_000_000_000_000 + index,
+                30,
+            )
+            .unwrap();
+            svm_math::defi::amm::quote_exact_out(
+                9_000_000_000_000_000_000,
+                8_000_000_000_000_000_000,
+                1_000_000_000_000_000_000 + index,
+                30,
+            )
+            .unwrap();
+            assert!(wide(
+                4_000_000_000_000_000_000 + index,
+                9_000_000_000_000_000_000
+            ));
+            svm_math::defi::amm::initial_lp_shares_floor(
+                4_000_000_000_000_000_000 + index,
+                9_000_000_000_000_000_000,
+            );
+
+            assert!(wide(7_000_000_000_000_000_000 + index, 10_000));
+            svm_math::defi::lending::utilization_bps(
+                7_000_000_000_000_000_000 + index,
+                9_000_000_000_000_000_000,
+            )
+            .unwrap();
+            svm_math::defi::lending::borrow_rate_bps(
+                8_001 + index % 100,
+                100_000_000_000_000_000,
+                500_000_000_000_000_000,
+                2_000_000_000_000_000_000,
+                8_000,
+            )
+            .unwrap();
+
+            assert!(wide(1_000_000_000_000 + index, WIDE_SCALE));
+            svm_math::defi::staking::reward_index_accrue(
+                1_250_000_000_000_000_000,
+                1_250_000_000_000_001_000,
+                1_000_000_000_000 + index,
+                100_000_000_000_000,
+                WIDE_SCALE,
+            )
+            .unwrap();
+            svm_math::defi::staking::rewards_owed_floor(
+                1_000_000_000_000_000_000 + index,
+                1_300_000_000_000_000_000,
+                1_250_000_000_000_000_000,
+                WIDE_SCALE,
+            )
+            .unwrap();
+
+            svm_math::defi::oracle::price_bounds_scaled(
+                9_000_000_000_000_000_000 + index as i64,
+                1_000_000_000_000_000_000,
+                -19,
+                WIDE_SCALE,
+            )
+            .unwrap();
+
+            assert!(wide(
+                9_000_000_000_000_000_000,
+                5_000_000_000_000_000_000 + index
+            ));
+            svm_math::defi::schedule::vested_floor(
+                9_000_000_000_000_000_000,
+                1_000_000_000_000_000_000,
+                1_000_000_000_000_000_000,
+                9_000_000_000_000_000_000,
+                6_000_000_000_000_000_000 + index,
+            )
+            .unwrap();
+            svm_math::defi::schedule::linear_interp_floor(
+                0,
+                9_000_000_000_000_000_000,
+                5_000_000_000_000_000_000 + index,
+                9_000_000_000_000_000_000,
+            )
+            .unwrap();
+            svm_math::defi::schedule::linear_interp_ceil(
+                9_000_000_000_000_000_000,
+                0,
+                5_000_000_000_000_000_000 + index,
+                9_000_000_000_000_000_000,
+            )
+            .unwrap();
+        }
+    }
 
     #[test]
     fn wide_mul_div_workload_forces_the_128_by_64_path() {

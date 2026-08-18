@@ -134,8 +134,13 @@ fn mul_div_narrow(a: u64, b: u64, denominator: u64) -> Option<Result<(u64, u64),
         return Some(Ok((quotient, remainder_product % denominator)));
     }
 
-    a.checked_mul(b)
-        .map(|product| Ok((product / denominator, product % denominator)))
+    // One wide operand with a denominator above a word half: `checked_mul`
+    // here lowers to an overflow-checked multiply builtin call, and on
+    // overflow the wide route multiplies again. Declining outright is
+    // faster on both sides: the wide route's zero-high path already
+    // divides a fitting product natively (measured: -66 on the wide
+    // utilization row against +3 on the big-by-big row).
+    None
 }
 
 pub(crate) struct FixedDivisor {
