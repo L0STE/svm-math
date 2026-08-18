@@ -28,7 +28,7 @@ fn to_u64(value: u128) -> Result<u64, MathError> {
 fn scaled_quotient_word(
     value: u128,
     scale: u64,
-    divisor: &mut FixedDivisor,
+    divisor: &FixedDivisor,
     round_up: bool,
 ) -> Result<u64, MathError> {
     let limbs = product_limbs(value, scale);
@@ -136,13 +136,10 @@ pub fn price_bounds_scaled(
                 .ok_or(MathError::Overflow)?;
             return Ok((lower, to_u64(upper)?));
         }
-        let mut divisor = match FixedDivisor::decimal(word) {
-            Some(divisor) => divisor,
-            None => FixedDivisor::new(word)?,
-        };
+        let divisor = FixedDivisor::new(word)?;
         return Ok((
-            scaled_quotient_word(u128::from(lower), output_scale, &mut divisor, false)?,
-            scaled_quotient_word(upper, output_scale, &mut divisor, true)?,
+            scaled_quotient_word(u128::from(lower), output_scale, &divisor, false)?,
+            scaled_quotient_word(upper, output_scale, &divisor, true)?,
         ));
     }
     Ok((

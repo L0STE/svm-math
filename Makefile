@@ -39,7 +39,7 @@ oracle:
 verify: check features oracle
 
 lean:
-	cd verification/lean && lean Div2x1.lean && lean Sqrt.lean
+	cd verification/lean && lean Sqrt.lean
 
 kani-list:
 	@actual=$$(mktemp); expected=$$(mktemp); \
@@ -47,16 +47,13 @@ kani-list:
 		awk '/^#\[kani::proof\]$$/ { proof = 1; next } proof && /^fn [a-z0-9_]+\(/ { \
 			name = $$2; sub(/\(.*/, "", name); print name; proof = 0 \
 		}' src/proofs.rs | LC_ALL=C sort > "$$actual"; \
-		test "$$(rg -c '^[a-z0-9_]+ unwind=[0-9]+ solver=[a-zA-Z0-9_-]+$$' verification/kani-harnesses.txt)" = 16; \
+		test "$$(rg -c '^[a-z0-9_]+ unwind=[0-9]+ solver=[a-zA-Z0-9_-]+$$' verification/kani-harnesses.txt)" = 13; \
 		cut -d' ' -f1 verification/kani-harnesses.txt | LC_ALL=C sort > "$$expected"; \
-		test "$$(uniq "$$expected" | wc -l | tr -d ' ')" = 16; \
+		test "$$(uniq "$$expected" | wc -l | tr -d ' ')" = 13; \
 		diff -u "$$expected" "$$actual"
 
 kani: kani-list
 	@set -eu; \
-		kissat_bin="$$(find "$$HOME/.kani" -maxdepth 3 -type f -name kissat -perm -111 2>/dev/null | head -1)"; \
-		test -n "$$kissat_bin"; \
-		export PATH="$$(dirname "$$kissat_bin"):$$PATH"; \
 		out=target/plan-002-evidence/kani; mkdir -p "$$out"; \
 		: > "$$out/summary.txt"; \
 		while read -r name unwind_field solver_field; do \

@@ -57,7 +57,7 @@ release gates fail if any operation exceeds its recorded reference.
 |---|---:|---|
 | `mul_div_floor(a, b, d)` | 4 | exact `⌊a·b/d⌋` when `a·b` fits one word (both inputs under `2^32`) |
 | `mul_div_ceil(a, b, d)` | 12 | exact `⌈a·b/d⌉`, same fast path |
-| `mul_div_floor`, wide operands | 340 | the same call when `a·b` needs 128 bits, measured on a worst-case chained workload and gated as its own row |
+| `mul_div_floor`, wide operands | 237 | the same call when `a·b` needs 128 bits, measured on a worst-case chained workload and gated as its own row |
 | `isqrt(n)` | 152 | exact `⌊√n⌋` for any `u128` |
 | `sqrt_floor(v, s)` | 184 | exact `⌊√(v·s)⌋` |
 | `sqrt_ceil(v, s)` | 194 | exact `⌈√(v·s)⌉` |

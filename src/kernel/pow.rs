@@ -99,7 +99,7 @@ fn powi<const UPPER: bool>(mut base: u64, mut exponent: u64, scale: u64) -> Resu
     if exponent == 0 {
         return Ok(scale);
     }
-    let mut divisor = FixedDivisor::new(scale)?;
+    let divisor = FixedDivisor::new(scale)?;
     let mut result = scale;
     while exponent != 0 {
         if exponent & 1 != 0 {

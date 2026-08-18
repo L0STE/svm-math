@@ -1,7 +1,5 @@
 use crate::{
-    kernel::wide::{
-        decimal_div_rem_valid, decimal_mul_div, div_rem_128_by_64, mul_div, widening_mul,
-    },
+    kernel::wide::{div_rem_128_by_64, mul_div, widening_mul},
     MathError,
 };
 
@@ -142,14 +140,7 @@ fn scaled_magnitude_to_q(value: u64, scale: u64) -> Result<(u128, bool), MathErr
     } else {
         let whole = value / scale;
         let remainder = value % scale;
-        let (fraction, discarded) = if scale > u64::from(u32::MAX) {
-            match decimal_mul_div(remainder, Q, scale) {
-                Some(result) => result?,
-                None => mul_div(remainder, Q, scale)?,
-            }
-        } else {
-            mul_div(remainder, Q, scale)?
-        };
+        let (fraction, discarded) = mul_div(remainder, Q, scale)?;
         (whole, fraction, discarded != 0)
     };
     Ok((
@@ -296,11 +287,6 @@ fn normalize_division(value: u64, scale: u64, integer: i32) -> (u64, u64) {
     };
     if high == 0 {
         (low / scale, low % scale)
-    } else if scale > u64::from(u32::MAX) {
-        match decimal_div_rem_valid(high, low, scale) {
-            Some(result) => result,
-            None => div_rem_128_by_64(high, low, scale),
-        }
     } else {
         div_rem_128_by_64(high, low, scale)
     }
