@@ -1,0 +1,9 @@
+[package]
+name = "svm-math-oracle"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+rug = "1.30.0"
+svm-math = { path = "../.." }

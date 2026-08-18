@@ -1,0 +1,73 @@
+f589fc21559dcfac4a2335e7bc595e4bec27c361
+ M ../../.github/workflows/ci.yml
+ D ../../CHANGELOG.md
+ M ../../CONTRIBUTING.md
+ M ../../Cargo.lock
+ M ../../Cargo.toml
+ M ../../DESIGN.md
+ M ../../Makefile
+ M ../../README.md
+ M ../../VERIFICATION.md
+ M Cargo.toml
+ M src/lib.rs
+ M ../runner/src/cu.rs
+ D ../../examples/compact_consumer.rs
+ M ../../examples/core_consumer.rs
+ M ../../examples/defi_consumer.rs
+ D ../../examples/storage_consumer.rs
+ M ../../plans/002-rebuild-as-raw-kernel-api.md
+ M ../../plans/README.md
+ D ../../src/amount.rs
+ D ../../src/borsh.rs
+ D ../../src/compact.rs
+ D ../../src/compound.rs
+ M ../../src/defi/amm.rs
+ M ../../src/defi/fee.rs
+ M ../../src/defi/lending.rs
+ D ../../src/defi/mod.rs
+ M ../../src/defi/oracle.rs
+ M ../../src/defi/schedule.rs
+ M ../../src/defi/staking.rs
+ D ../../src/defi/vault.rs
+ M ../../src/error.rs
+ D ../../src/exp2.rs
+ D ../../src/interval.rs
+ M ../../src/lib.rs
+ D ../../src/libcall.rs
+ D ../../src/literal.rs
+ D ../../src/log2.rs
+ D ../../src/mantissa.rs
+ M ../../src/proofs.rs
+ D ../../src/raw.rs
+ D ../../src/repr.rs
+ D ../../src/round.rs
+ D ../../src/signed.rs
+ D ../../src/storage.rs
+ D ../../src/value.rs
+ D ../../tests/characterization.rs
+ D ../../tests/concrete.rs
+ M ../../tests/defi.rs
+ D ../../tests/storage.rs
+ M ../../tests/transcendentals.rs
+ D ../../verification/lean/CompactDiv.lean
+ M ../../verification/lean/Div2x1.lean
+ M ../../verification/oracle/Cargo.toml
+ D ../../verification/oracle/README.md
+ M ../../verification/oracle/src/main.rs
+ M ../../verification/public-api.txt
+ M ../../verification/sbf-workloads.txt
+?? ../ab/
+?? target/
+?? ../../src/defi.rs
+?? ../../src/kernel.rs
+?? ../../src/kernel/
+?? ../../tests/exact_kernel.rs
+?? ../../tests/public_signatures.rs
+?? ../../verification/exhaustive-tests.txt
+?? ../../verification/kani-harnesses.txt
+?? ../../verification/lean/Sqrt.lean
+?? ../../verification/package-files.txt
+solana-cargo-build-sbf 4.0.0
+platform-tools v1.53
+rustc 1.89.0
+319a9ba6eec1b24f64032fcd17eac822f79e09440a1905ae55fe1e8d86ecc287  /Users/leo/.cargo/bin/cargo-build-sbf

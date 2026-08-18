@@ -1,0 +1,37 @@
+--- a/src/kernel/scale.rs
++++ b/src/kernel/scale.rs
+@@ -1,5 +1,5 @@
+ use crate::{
+-    kernel::wide::{div_rem_128_by_64, mul_div, widening_mul, FixedDivisor},
++    kernel::wide::{div_rem_128_by_64, mul_div, widening_mul},
+     MathError,
+ };
+ 
+@@ -105,14 +105,7 @@
+     } else {
+         let whole = value / scale;
+         let remainder = value % scale;
+-        let (fraction, discarded) = if scale > u64::from(u32::MAX) {
+-            match FixedDivisor::decimal(scale) {
+-                Some(mut divisor) => divisor.mul_div(remainder, Q)?,
+-                None => mul_div(remainder, Q, scale)?,
+-            }
+-        } else {
+-            mul_div(remainder, Q, scale)?
+-        };
++        let (fraction, discarded) = mul_div(remainder, Q, scale)?;
+         (whole, fraction, discarded != 0)
+     };
+     Ok((
+@@ -224,11 +217,6 @@
+     };
+     let (quotient, remainder) = if high == 0 {
+         (low / scale, low % scale)
+-    } else if scale > u64::from(u32::MAX) {
+-        match FixedDivisor::decimal(scale) {
+-            Some(mut divisor) => divisor.div_rem_valid(high, low),
+-            None => div_rem_128_by_64(high, low, scale),
+-        }
+     } else {
+         div_rem_128_by_64(high, low, scale)
+     };

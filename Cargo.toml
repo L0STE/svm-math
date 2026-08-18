@@ -1,0 +1,24 @@
+[package]
+name = "svm-math"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Exact mul-div, integer square roots, and certified fixed-point transcendentals for Solana programs."
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+documentation = "https://docs.rs/svm-math"
+repository = "https://github.com/L0STE/svm-math"
+keywords = ["solana", "svm", "math", "defi", "no-std"]
+categories = ["mathematics", "no-std"]
+exclude = ["bench/**", "verification/**"]
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+overflow-checks = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(docsrs)', 'cfg(target_os, values("solana"))'] }

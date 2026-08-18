@@ -1,0 +1,30 @@
+[package]
+name = "svm-math-bench-program"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+size-wide = []
+size-sqrt = []
+size-exp2 = []
+size-log2 = []
+size-pow = []
+size-powi = []
+size-compound = []
+size-defi_fee = []
+size-defi_amm = []
+size-defi_lending = []
+size-defi_staking = []
+size-defi_oracle = []
+size-defi_schedule = []
+
+[dependencies]
+svm-math = { path = "../.." }
+solana-program = "2"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("custom-heap", "custom-panic"))', 'cfg(target_os, values("solana"))'] }

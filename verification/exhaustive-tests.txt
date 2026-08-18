@@ -1,0 +1,3 @@
+kernel::sqrt::tests::exhaustive_isqrt_u16_every_input
+kernel::wide::tests::exhaustive_div_rem_u8_every_valid_input
+kernel::wide::tests::exhaustive_widening_mul_u8_every_pair

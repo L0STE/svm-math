@@ -1,0 +1,50 @@
+pub mod svm_math
+pub mod svm_math::defi
+pub mod svm_math::defi::amm
+pub fn svm_math::defi::amm::initial_lp_shares_floor(u64, u64) -> u64
+pub fn svm_math::defi::amm::quote_exact_in(u64, u64, u64, u16) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::defi::amm::quote_exact_out(u64, u64, u64, u16) -> core::result::Result<u64, svm_math::MathError>
+pub mod svm_math::defi::fee
+pub fn svm_math::defi::fee::net_of_fee(u64, u16) -> core::result::Result<(u64, u64), svm_math::MathError>
+pub mod svm_math::defi::lending
+pub fn svm_math::defi::lending::borrow_rate_bps(u64, u64, u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::defi::lending::utilization_bps(u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub mod svm_math::defi::oracle
+pub fn svm_math::defi::oracle::price_bounds_scaled(i64, u64, i32, u64) -> core::result::Result<(u64, u64), svm_math::MathError>
+pub mod svm_math::defi::schedule
+pub fn svm_math::defi::schedule::linear_interp_ceil(u64, u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::defi::schedule::linear_interp_floor(u64, u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::defi::schedule::vested_floor(u64, u64, u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub mod svm_math::defi::staking
+pub fn svm_math::defi::staking::reward_index_accrue(u64, u64, u64, u64, u64) -> core::result::Result<(u64, u64), svm_math::MathError>
+pub fn svm_math::defi::staking::reward_index_accrue_lower(u64, u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::defi::staking::reward_index_accrue_upper(u64, u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::defi::staking::rewards_owed_floor(u64, u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+#[non_exhaustive] #[repr(u8)] pub enum svm_math::MathError
+pub svm_math::MathError::DivByZero = 0
+pub svm_math::MathError::OutOfDomain = 4
+pub svm_math::MathError::Overflow = 2
+impl svm_math::MathError
+pub const fn svm_math::MathError::code(self) -> u8
+impl core::error::Error for svm_math::MathError
+impl core::fmt::Display for svm_math::MathError
+pub fn svm_math::MathError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn svm_math::compound_bounds(u64, u64, u64, u64) -> core::result::Result<(u64, u64), svm_math::MathError>
+pub fn svm_math::compound_lower(u64, u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::compound_upper(u64, u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::exp2_bounds(i64, u64) -> core::result::Result<(u64, u64), svm_math::MathError>
+pub fn svm_math::exp2_lower(i64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::exp2_upper(i64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::isqrt(u128) -> u128
+pub fn svm_math::log2_bounds(u64, u64) -> core::result::Result<(i64, i64), svm_math::MathError>
+pub fn svm_math::log2_lower(u64, u64) -> core::result::Result<i64, svm_math::MathError>
+pub fn svm_math::log2_upper(u64, u64) -> core::result::Result<i64, svm_math::MathError>
+pub fn svm_math::mul_div_ceil(u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::mul_div_floor(u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::pow_bounds(u64, u64, u64) -> core::result::Result<(u64, u64), svm_math::MathError>
+pub fn svm_math::pow_lower(u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::pow_upper(u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::powi_lower(u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::powi_upper(u64, u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::sqrt_ceil(u64, u64) -> core::result::Result<u64, svm_math::MathError>
+pub fn svm_math::sqrt_floor(u64, u64) -> core::result::Result<u64, svm_math::MathError>
