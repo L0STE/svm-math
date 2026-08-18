@@ -55,30 +55,22 @@ release gates fail if any operation exceeds its recorded reference.
 
 | function | CU | returns |
 |---|---:|---|
-| `mul_div_floor(a, b, d)` | 4¹ | exact `⌊a·b/d⌋` |
-| `mul_div_ceil(a, b, d)` | 12¹ | exact `⌈a·b/d⌉` |
+| `mul_div_floor(a, b, d)` | 4 | exact `⌊a·b/d⌋` when `a·b` fits one word (both inputs under `2^32`) |
+| `mul_div_ceil(a, b, d)` | 12 | exact `⌈a·b/d⌉`, same fast path |
+| `mul_div_floor`, wide operands | 340 | the same call when `a·b` needs 128 bits, measured on a worst-case chained workload and gated as its own row |
 | `isqrt(n)` | 152 | exact `⌊√n⌋` for any `u128` |
 | `sqrt_floor(v, s)` | 184 | exact `⌊√(v·s)⌋` |
 | `sqrt_ceil(v, s)` | 194 | exact `⌈√(v·s)⌉` |
 | `exp2_lower(e, s)` / `exp2_upper(e, s)` | 249 / 274 | one-sided bounds on `2^(e/s)`, negative exponents included |
-| `log2_lower(v, s)` / `log2_upper(v, s)` | 90 / 98² | one-sided bounds on `log2(v/s)`, signed result |
+| `log2_lower(v, s)` / `log2_upper(v, s)` | 90 / 98 | one-sided bounds on `log2(v/s)`, signed result; measured at scale 1, where log2 is cheap — see `log2_bounds` for the realistic-scale cost |
 | `pow_lower(b, e, s)` / `pow_upper(b, e, s)` | 611 / 702 | one-sided bounds on `(b/s)^(e/s)`; exact integer exponents route to `powi` |
 | `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 106 / 179 | one-sided bounds on `(b/s)^n` by directed squaring |
 | `compound_lower(r, n, t, s)` / `compound_upper(r, n, t, s)` | 1 044 / 1 075 | one-sided bounds on `(1 + (r/s)/n)^t` |
 | `exp2_bounds(e, s)` | 501 | both exp2 bounds, one pass |
-| `log2_bounds(v, s)` | 714² | both log2 bounds, one pass |
+| `log2_bounds(v, s)` | 714 | both log2 bounds in one pass at a `10^9` scale, where the two single calls cost 918 together |
 | `pow_bounds(b, e, s)` | 1 208 | both pow bounds, one pass |
 | `compound_bounds(r, n, t, s)` | 1 974 | both compound bounds, one pass |
 
-¹ cost with operands under `2^32`, where a native-division fast path
-applies. Larger operands take the reciprocal divider; a deliberately harsh
-chained wide-operand workload measures 340 CU per division and is gated as
-its own row (`mul_div_floor_wide`) so the expensive path cannot regress
-unnoticed.
-² these two rows run at scale 1, where log2 is a cheap integer operation.
-At a realistic `10^9` scale the full fractional machinery runs and the two
-single calls cost 918 CU together — the workload the `log2_bounds` row
-measures, and the pair it beats.
 
 ### `defi` — stateless recipes over primitive integers
 
