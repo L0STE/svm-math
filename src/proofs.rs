@@ -156,13 +156,16 @@ fn powi_directed_mul_step_preserves_order() {
 }
 
 fn isqrt_seed_stage() {
+    // The bracket Sqrt.lean consumes: the seed squares to at least the
+    // value, half the seed squares to at most it, and the seed fits the
+    // 32-bit root domain. The table construction is not re-proved here;
+    // the bracket is what the descent and its cap depend on.
     let value: u64 = kani::any();
     kani::assume(value >= 2);
 
     let seed = crate::kernel::sqrt::isqrt_seed(value);
     let target = (0, value);
-    assert!(seed.is_power_of_two());
-    assert!(seed <= 1_u64 << 32);
+    assert!(0 < seed && seed <= 1_u64 << 32);
     assert!(widening_mul(seed, seed) >= target);
     assert!(widening_mul(seed >> 1, seed >> 1) <= target);
 }

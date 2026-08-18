@@ -25,10 +25,7 @@ const fn normalize_denominator(denominator: u64) -> (u64, u32) {
     (denominator << shift, shift)
 }
 
-/// Out of line so callers' narrow fast paths keep small stack frames: a
-/// prologue executes on every call, and the divider's registers would
-/// otherwise widen every frame it inlines into.
-#[inline(never)]
+#[inline(always)]
 pub(crate) fn div_rem_128_by_64(high: u64, low: u64, denominator: u64) -> (u64, u64) {
     debug_assert!(denominator != 0 && high < denominator);
     if high == 0 {
@@ -97,11 +94,18 @@ pub(crate) fn ceil_from_quotient_remainder(
 
 #[inline(always)]
 fn mul_div_narrow(a: u64, b: u64, denominator: u64) -> Option<Result<(u64, u64), MathError>> {
-    if a <= u64::from(u32::MAX) && b <= u64::from(u32::MAX) {
+    let a_high = a >> 32;
+    let b_high = b >> 32;
+    if a_high | b_high == 0 {
         let product = a * b;
         return Some(Ok((product / denominator, product % denominator)));
     }
 
+    // Two wide operands defeat both remaining branches (each needs one
+    // operand inside a word half), so big-by-big products exit at once.
+    if a_high != 0 && b_high != 0 {
+        return None;
+    }
     let (large, small) = if a >= b { (a, b) } else { (b, a) };
     if small < denominator && denominator <= u64::from(u32::MAX) {
         let remainder_product = (large % denominator) * small;
@@ -234,7 +238,10 @@ pub(crate) fn mul_div(a: u64, b: u64, denominator: u64) -> Result<(u64, u64), Ma
     if let Some(result) = mul_div_narrow(a, b, denominator) {
         return result;
     }
-    let (high, low) = widening_mul(a, b);
+    // The native u128 product lowers better than the pair form in this
+    // context (measured); the mulhi-heavy kernels keep the pair form.
+    let product = u128::from(a) * u128::from(b);
+    let (high, low) = ((product >> 64) as u64, product as u64);
     if let Some(error) = mul_div_error(high, denominator) {
         return Err(error);
     }

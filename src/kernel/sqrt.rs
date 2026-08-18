@@ -7,12 +7,49 @@ pub(crate) fn isqrt_newton_from_quotient(root: u64, quotient: u64) -> u64 {
     (root + quotient) >> 1
 }
 
+/// Entry `i` is `ceil(sqrt((64 + i + 1) << 56) / 2^24)`: an upper seed for
+/// every normalized value whose top byte is `64 + i`, within one part in
+/// 128 of the true root.
+static SQRT_SEEDS: [u16; 192] = sqrt_seed_table();
+
+const fn sqrt_seed_table() -> [u16; 192] {
+    let mut table = [0_u16; 192];
+    let mut index = 0;
+    while index < table.len() {
+        let bucket_end = (64 + index as u128 + 1) << 56;
+        let root = const_sqrt_ceil(bucket_end);
+        table[index] = ((root + ((1 << 24) - 1)) >> 24) as u16;
+        index += 1;
+    }
+    table
+}
+
+/// The least `r` with `r * r >= value`, by bisection; table generation only.
+const fn const_sqrt_ceil(value: u128) -> u128 {
+    let mut low = 0_u128;
+    let mut high = 1_u128 << 33;
+    while low < high {
+        let middle = (low + high) / 2;
+        if middle * middle >= value {
+            high = middle;
+        } else {
+            low = middle + 1;
+        }
+    }
+    low
+}
+
 #[inline(always)]
 pub(crate) fn isqrt_seed(value: u64) -> u64 {
-    // Kani's `isqrt_seed_stage` proves the power-of-two bracket and 2^32
-    // bound consumed by `Sqrt.seed_excess_below_word`.
-    let root_bits = (64 - value.leading_zeros()).div_ceil(2);
-    1_u64 << root_bits
+    // Kani's `isqrt_seed_stage` proves the bracket and 2^32 bound consumed
+    // by `Sqrt.seed_excess_below_word`. The table entry upper-bounds the
+    // root of its whole normalized bucket, and the +1 absorbs the
+    // denormalizing shift's truncation, so Newton's monotone descent still
+    // starts at or above the true root — now within one part in 128 of it.
+    let shift = value.leading_zeros() & !1;
+    let normalized = value << shift;
+    let seed = u64::from(SQRT_SEEDS[(normalized >> 56) as usize - 64]) << 24;
+    ((seed >> (shift / 2)) + 1).min(1_u64 << 32)
 }
 
 #[inline(always)]

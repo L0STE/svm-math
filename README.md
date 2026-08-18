@@ -55,16 +55,16 @@ release gates fail if any operation exceeds its recorded reference.
 
 | function | CU | returns |
 |---|---:|---|
-| `mul_div_floor(a, b, d)` | 4 | exact `⌊a·b/d⌋` when `a·b` fits one word (both inputs under `2^32`) |
-| `mul_div_ceil(a, b, d)` | 12 | exact `⌈a·b/d⌉`, same fast path |
-| `mul_div_floor`, wide operands | 237 | the same call when `a·b` needs 128 bits, measured on a worst-case chained workload and gated as its own row |
-| `isqrt(n)` | 152 | exact `⌊√n⌋` for any `u128` |
-| `sqrt_floor(v, s)` | 184 | exact `⌊√(v·s)⌋` |
-| `sqrt_ceil(v, s)` | 194 | exact `⌈√(v·s)⌉` |
+| `mul_div_floor(a, b, d)` | 11 | exact `⌊a·b/d⌋` when `a·b` fits one word (both inputs under `2^32`) |
+| `mul_div_ceil(a, b, d)` | 19 | exact `⌈a·b/d⌉`, same fast path |
+| `mul_div_floor`, wide operands | 161 | the same call when `a·b` needs 128 bits, measured on a worst-case chained workload and gated as its own row |
+| `isqrt(n)` | 147 | exact `⌊√n⌋` for any `u128` |
+| `sqrt_floor(v, s)` | 176 | exact `⌊√(v·s)⌋` |
+| `sqrt_ceil(v, s)` | 186 | exact `⌈√(v·s)⌉` |
 | `exp2_lower(e, s)` / `exp2_upper(e, s)` | 249 / 274 | one-sided bounds on `2^(e/s)`, negative exponents included |
 | `log2_lower(v, s)` / `log2_upper(v, s)` | 90 / 98 | one-sided bounds on `log2(v/s)`, signed result; measured at scale 1, where log2 is cheap — see `log2_bounds` for the realistic-scale cost |
 | `pow_lower(b, e, s)` / `pow_upper(b, e, s)` | 611 / 702 | one-sided bounds on `(b/s)^(e/s)`; exact integer exponents route to `powi` |
-| `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 106 / 179 | one-sided bounds on `(b/s)^n` by directed squaring |
+| `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 105 / 178 | one-sided bounds on `(b/s)^n` by directed squaring |
 | `compound_lower(r, n, t, s)` / `compound_upper(r, n, t, s)` | 1 044 / 1 075 | one-sided bounds on `(1 + (r/s)/n)^t` |
 | `exp2_bounds(e, s)` | 501 | both exp2 bounds, one pass |
 | `log2_bounds(v, s)` | 714 | both log2 bounds in one pass at a `10^9` scale, where the two single calls cost 918 together |
@@ -80,9 +80,9 @@ identity, decimals, storage, and error conversion.
 | function | CU | returns |
 |---|---:|---|
 | `fee::net_of_fee(amount, bps)` | 29 | `(net, fee)` with `net + fee == amount`, fee rounded against the payer |
-| `amm::quote_exact_in(rin, rout, in, bps)` | 58 | constant-product output, floored — the pool never over-pays |
+| `amm::quote_exact_in(rin, rout, in, bps)` | 63 | constant-product output, floored — the pool never over-pays |
 | `amm::quote_exact_out(rin, rout, out, bps)` | 68 | least input whose replay through `quote_exact_in` reaches `out` |
-| `amm::initial_lp_shares_floor(a, b)` | 177 | `⌊√(a·b)⌋` bootstrap shares — never over-mints |
+| `amm::initial_lp_shares_floor(a, b)` | 160 | `⌊√(a·b)⌋` bootstrap shares — never over-mints |
 | `lending::utilization_bps(borrowed, supplied)` | 17 | utilization in basis points, floored |
 | `lending::borrow_rate_bps(u, base, s1, s2, kink)` | 57 | two-leg kinked rate, ceiled — borrowers never underpay the curve |
 | `oracle::price_bounds_scaled(price, conf, expo, s)` | 225 | outward bounds on `(price ± conf)·10^expo`, floored at zero |
@@ -91,7 +91,7 @@ identity, decimals, storage, and error conversion.
 | `schedule::linear_interp_ceil(from, to, t, dur)` | 23 | clamped interpolation, above the true line |
 | `staking::reward_index_accrue_lower(i, r, staked, s)` | 29 | index accrual, floored |
 | `staking::reward_index_accrue_upper(i, r, staked, s)` | 37 | index accrual, ceiled |
-| `staking::reward_index_accrue(lo, hi, r, staked, s)` | 47 | both endpoints from one division |
+| `staking::reward_index_accrue(lo, hi, r, staked, s)` | 48 | both endpoints from one division |
 | `staking::rewards_owed_floor(staked, now, snap, s)` | 23 | rewards owed, floored — the pool never over-pays |
 
 ```rust
