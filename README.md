@@ -69,12 +69,12 @@ the 128-by-64 divider. The wide column is why this crate exists.
 | `exp2_lower(e, s)` / `exp2_upper(e, s)` | 193 / 217 | 250 / 274 | one-sided bounds on `2^(e/s)`, negative exponents included |
 | `log2_lower(v, s)` / `log2_upper(v, s)` | 381 / 413 | 394 / 426 | one-sided bounds on `log2(v/s)`, signed result |
 | `pow_lower(b, e, s)` / `pow_upper(b, e, s)` | 576 / 653 | 669 / 752 | one-sided bounds on `(b/s)^(e/s)`; exact integer exponents route to `powi` |
-| `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 113 / 186 | 788 / 877 | one-sided bounds on `(b/s)^n` by directed squaring; wide operands square in binary fixed point, paying the divider only at the seed and the projection |
-| `compound_lower(r, n, t, s)` / `compound_upper(r, n, t, s)` | 1499 / 1536 | 1459 / 1495 | one-sided bounds on `(1 + (r/s)/n)^t` |
+| `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 113 / 186 | 781 / 887 | one-sided bounds on `(b/s)^n` by directed squaring; wide operands square in binary fixed point, paying the divider only at the seed and the projection |
+| `compound_lower(r, n, t, s)` / `compound_upper(r, n, t, s)` | 1 078 / 1 105 | 1 190 / 1 217 | one-sided bounds on `(1 + (r/s)/n)^t` |
 | `exp2_bounds(e, s)` | 387 | 443 | both exp2 bounds, one pass — bit-identical to the two calls, cheaper |
 | `log2_bounds(v, s)` | 609 | 633 | both log2 bounds, one pass |
 | `pow_bounds(b, e, s)` | 990 | 1104 | both pow bounds, one pass |
-| `compound_bounds(r, n, t, s)` | 1846 | 1809 | both compound bounds, one pass |
+| `compound_bounds(r, n, t, s)` | 1 552 | 1 667 | both compound bounds, one pass |
 
 
 ### `defi` — stateless recipes over primitive integers
@@ -90,7 +90,7 @@ identity, decimals, storage, and error conversion.
 | `amm::initial_lp_shares_floor(a, b)` | 160 | 270 | `⌊√(a·b)⌋` bootstrap shares — never over-mints |
 | `lending::utilization_bps(borrowed, supplied)` | 16 | 137 | utilization in basis points, floored |
 | `lending::borrow_rate_bps(u, base, s1, s2, kink)` | 57 | 75 | two-leg kinked rate, ceiled — borrowers never underpay the curve |
-| `oracle::price_bounds_scaled(price, conf, expo, s)` | 224 | 637 | outward bounds on `(price ± conf)·10^expo`, floored at zero |
+| `oracle::price_bounds_scaled(price, conf, expo, s)` | 139 | 296 | outward bounds on `(price ± conf)·10^expo`, floored at zero |
 | `schedule::vested_floor(total, start, cliff, dur, now)` | 26 | 167 | cliffed linear vesting, floored — never over-releases |
 | `schedule::linear_interp_floor(from, to, t, dur)` | 29 | 175 | clamped interpolation, below the true line |
 | `schedule::linear_interp_ceil(from, to, t, dur)` | 25 | 171 | clamped interpolation, above the true line |

@@ -1,6 +1,6 @@
 use crate::kernel::exp2::exp2_from_q;
 use crate::kernel::scale::{mul_q_unsigned, mul_signed_q, project_binary_unsigned, Q, Q_BITS};
-use crate::kernel::wide::{div_rem_128_by_64, widening_mul};
+use crate::kernel::wide::{div_rem_wide_quotient, widening_mul};
 use crate::MathError;
 
 const INV_LN2_LOWER: u64 = 3_326_628_274_461_080_622;
@@ -40,17 +40,18 @@ pub(crate) fn compound_bounds(
     if periods_per_year == 0 {
         return Err(MathError::OutOfDomain);
     }
-    let denominator = u128::from(periods_per_year) * u128::from(scale);
     if elapsed_periods == 0 || annual_rate == 0 {
         return Ok((scale, scale));
     }
-    if u128::from(annual_rate) * 256 > denominator {
-        return compound_binary_bounds(annual_rate, denominator, elapsed_periods, scale);
+    if beyond_series_domain(annual_rate, periods_per_year, scale) {
+        return compound_binary_bounds(annual_rate, periods_per_year, elapsed_periods, scale);
     }
 
-    let scaled = u128::from(annual_rate) * u128::from(Q);
-    let x_lower = (scaled / denominator) as u64;
-    let x_upper = ((scaled / denominator) + u128::from(scaled % denominator != 0)) as u64;
+    // In the series domain the staged quotient is below 2^53, so its high
+    // word is zero and the ceiling endpoint cannot wrap.
+    let (x_high, x_lower, inexact) = rate_q_stages(annual_rate, periods_per_year, scale);
+    debug_assert!(x_high == 0);
+    let x_upper = x_lower + u64::from(inexact);
     let (ln_lower, ln_upper) = ln1p_bounds(x_lower, x_upper)?;
     let log2_lower = mul_q_unsigned::<false>(ln_lower, INV_LN2_LOWER) as u64;
     let log2_upper = mul_q_unsigned::<true>(ln_upper, INV_LN2_UPPER) as u64;
@@ -79,20 +80,21 @@ fn compound<const UPPER: bool>(
     if periods_per_year == 0 {
         return Err(MathError::OutOfDomain);
     }
-    let denominator = u128::from(periods_per_year) * u128::from(scale);
     if elapsed_periods == 0 || annual_rate == 0 {
         return Ok(scale);
     }
-    if u128::from(annual_rate) * 256 > denominator {
+    if beyond_series_domain(annual_rate, periods_per_year, scale) {
         // Beyond the series domain the per-period rate is at least 2^-8, so
         // the period count that still fits the result in `u64 / scale` is
         // small and direct binary squaring is both exact enough and cheap.
-        return compound_binary::<UPPER>(annual_rate, denominator, elapsed_periods, scale);
+        return compound_binary::<UPPER>(annual_rate, periods_per_year, elapsed_periods, scale);
     }
 
-    let scaled = u128::from(annual_rate) * u128::from(Q);
-    let x_lower = (scaled / denominator) as u64;
-    let x_upper = ((scaled / denominator) + u128::from(scaled % denominator != 0)) as u64;
+    // In the series domain the staged quotient is below 2^53, so its high
+    // word is zero and the ceiling endpoint cannot wrap.
+    let (x_high, x_lower, inexact) = rate_q_stages(annual_rate, periods_per_year, scale);
+    debug_assert!(x_high == 0);
+    let x_upper = x_lower + u64::from(inexact);
     let (ln_lower, ln_upper) = ln1p_bounds(x_lower, x_upper)?;
     let log2_lower = mul_q_unsigned::<false>(ln_lower, INV_LN2_LOWER) as u64;
     let log2_upper = mul_q_unsigned::<true>(ln_upper, INV_LN2_UPPER) as u64;
@@ -115,6 +117,31 @@ struct Normalized {
     exponent: i64,
 }
 
+/// `annual_rate * 256 > periods_per_year * scale`, in words: the product
+/// stays as a two-word pair, so no 128-bit multiply is synthesized.
+#[inline(always)]
+fn beyond_series_domain(annual_rate: u64, periods_per_year: u64, scale: u64) -> bool {
+    let (product_high, product_low) = widening_mul(periods_per_year, scale);
+    (annual_rate >> 56, annual_rate << 8) > (product_high, product_low)
+}
+
+/// Directed `annual_rate * 2^61 / (periods_per_year * scale)` through two
+/// word divisions instead of a synthesized 128-bit one: nested floors
+/// divide by a product exactly, and the division is inexact when either
+/// stage leaves a remainder.
+#[inline(always)]
+fn rate_q_stages(annual_rate: u64, periods_per_year: u64, scale: u64) -> (u64, u64, bool) {
+    let (stage_high, stage_low, first_remainder) =
+        div_rem_wide_quotient(annual_rate >> 3, annual_rate << 61, periods_per_year);
+    let (quotient_high, quotient_low, second_remainder) =
+        div_rem_wide_quotient(stage_high, stage_low, scale);
+    (
+        quotient_high,
+        quotient_low,
+        first_remainder != 0 || second_remainder != 0,
+    )
+}
+
 /// `(1 + annual_rate / denominator)^elapsed_periods` by directed binary
 /// squaring, for the large-per-period-rate regime the series rejects.
 ///
@@ -123,11 +150,11 @@ struct Normalized {
 /// times — then squared with one directed rounding of `2^-63` per step.
 fn compound_binary<const UPPER: bool>(
     annual_rate: u64,
-    denominator: u128,
+    periods_per_year: u64,
     elapsed_periods: u64,
     scale: u64,
 ) -> Result<u64, MathError> {
-    let (quotient, inexact) = binary_rate_q(annual_rate, denominator);
+    let (quotient, inexact) = binary_rate_q(annual_rate, periods_per_year, scale);
     let rate_q = quotient + u128::from(UPPER && inexact);
     let base = normalize_q61::<UPPER>((1_u128 << 61) + rate_q);
     binary_power::<UPPER>(base, elapsed_periods, scale)
@@ -137,11 +164,11 @@ fn compound_binary<const UPPER: bool>(
 /// pair of single-direction calls.
 fn compound_binary_bounds(
     annual_rate: u64,
-    denominator: u128,
+    periods_per_year: u64,
     elapsed_periods: u64,
     scale: u64,
 ) -> Result<(u64, u64), MathError> {
-    let (quotient, inexact) = binary_rate_q(annual_rate, denominator);
+    let (quotient, inexact) = binary_rate_q(annual_rate, periods_per_year, scale);
     let base_lower = normalize_q61::<false>((1_u128 << 61) + quotient);
     let base_upper = normalize_q61::<true>((1_u128 << 61) + quotient + u128::from(inexact));
     Ok((
@@ -150,21 +177,12 @@ fn compound_binary_bounds(
     ))
 }
 
-/// rate_q = directed(annual_rate * 2^61 / denominator), exact division
-/// through the reciprocal divider whenever the denominator fits a word.
+/// rate_q = directed(annual_rate * 2^61 / (periods_per_year * scale)),
+/// entirely in word divisions through the nested-floor stages.
 #[inline(always)]
-fn binary_rate_q(annual_rate: u64, denominator: u128) -> (u128, bool) {
-    match u64::try_from(denominator) {
-        Ok(word) if (annual_rate >> 3) < word => {
-            let (quotient, remainder) =
-                div_rem_128_by_64(annual_rate >> 3, annual_rate << 61, word);
-            (u128::from(quotient), remainder != 0)
-        }
-        _ => {
-            let numerator = u128::from(annual_rate) << 61;
-            (numerator / denominator, numerator % denominator != 0)
-        }
-    }
+fn binary_rate_q(annual_rate: u64, periods_per_year: u64, scale: u64) -> (u128, bool) {
+    let (high, low, inexact) = rate_q_stages(annual_rate, periods_per_year, scale);
+    ((u128::from(high) << 64) | u128::from(low), inexact)
 }
 
 /// `(base/scale)^exponent` through the same directed binary squaring as
@@ -177,8 +195,9 @@ pub(crate) fn powi_binary<const UPPER: bool>(
     scale: u64,
 ) -> Result<u64, MathError> {
     debug_assert!(scale != 0 && exponent != 0);
-    let (quotient, inexact) = binary_rate_q(base, u128::from(scale));
-    let base_q = quotient + u128::from(UPPER && inexact);
+    let (high, low, remainder) = div_rem_wide_quotient(base >> 3, base << 61, scale);
+    let quotient = (u128::from(high) << 64) | u128::from(low);
+    let base_q = quotient + u128::from(UPPER && remainder != 0);
     if base_q == 0 {
         // base/scale < 2^-61 rounded down (or base is zero): every
         // positive power of the seed floors to zero at any scale.

@@ -98,6 +98,17 @@ fn divide_digit(u_high: u64, u_low: u64, normalized: u64) -> (u64, u64) {
     (digit, remainder)
 }
 
+/// Full 128-bit-quotient division by a word: the top digit divides
+/// natively and the proven two-digit divider finishes. Returns
+/// `(quotient_high, quotient_low, remainder)`.
+#[inline(always)]
+pub(crate) fn div_rem_wide_quotient(high: u64, low: u64, denominator: u64) -> (u64, u64, u64) {
+    debug_assert!(denominator != 0);
+    let quotient_high = high / denominator;
+    let (quotient_low, remainder) = div_rem_128_by_64(high % denominator, low, denominator);
+    (quotient_high, quotient_low, remainder)
+}
+
 #[inline(always)]
 pub(crate) fn mul_div_error(high: u64, denominator: u64) -> Option<MathError> {
     if denominator == 0 {
@@ -345,6 +356,21 @@ mod tests {
                 let product = u128::from(a) * u128::from(b);
                 assert_eq!(actual, ((product >> 64) as u64, product as u64));
             }
+        }
+    }
+
+    #[test]
+    fn wide_quotient_division_matches_u128() {
+        let mut state = 0x7769_6465_5f71_7521;
+        for index in 0..1_000_000_u64 {
+            let high = next_u64(&mut state);
+            let low = next_u64(&mut state);
+            let denominator = (next_u64(&mut state) >> (index % 64)).max(1);
+            let numerator = (u128::from(high) << 64) | u128::from(low);
+            let (q_high, q_low, remainder) = super::div_rem_wide_quotient(high, low, denominator);
+            let quotient = (u128::from(q_high) << 64) | u128::from(q_low);
+            assert_eq!(quotient, numerator / u128::from(denominator));
+            assert_eq!(u128::from(remainder), numerator % u128::from(denominator));
         }
     }
 

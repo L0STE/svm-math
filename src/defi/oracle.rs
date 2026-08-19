@@ -1,7 +1,9 @@
 //! Oracle price scaling.
 
 use crate::{
-    kernel::wide::{ceil_from_quotient_remainder, FixedDivisor},
+    kernel::wide::{
+        ceil_from_quotient_remainder, div_rem_wide_quotient, mul_div, widening_mul, FixedDivisor,
+    },
     MathError,
 };
 
@@ -21,6 +23,42 @@ const fn pow10_table() -> [u128; 39] {
 
 fn to_u64(value: u128) -> Result<u64, MathError> {
     u64::try_from(value).map_err(|_| MathError::Overflow)
+}
+
+/// A word product that must fit a word: two-word multiply, top word rejects.
+fn word_product(a: u64, b: u64) -> Result<u64, MathError> {
+    let (high, low) = widening_mul(a, b);
+    if high != 0 {
+        return Err(MathError::Overflow);
+    }
+    Ok(low)
+}
+
+/// `value * scale / (first * second)` where the divisor pair covers a
+/// beyond-word power of ten: the nested floors divide by the product
+/// exactly, in word divisions.
+fn staged_quotient(
+    value: u64,
+    scale: u64,
+    first: u64,
+    second: u64,
+    round_up: bool,
+) -> Result<u64, MathError> {
+    let (high, low) = widening_mul(value, scale);
+    let (stage_high, stage_low, first_remainder) = div_rem_wide_quotient(high, low, first);
+    let (quotient_high, quotient_low, second_remainder) =
+        div_rem_wide_quotient(stage_high, stage_low, second);
+    if quotient_high != 0 {
+        return Err(MathError::Overflow);
+    }
+    if round_up {
+        ceil_from_quotient_remainder(
+            quotient_low,
+            u64::from(first_remainder != 0) | second_remainder,
+        )
+    } else {
+        Ok(quotient_low)
+    }
 }
 
 /// Splits `value * scale` into three limbs and divides them by the shared
@@ -109,17 +147,19 @@ pub fn price_bounds_scaled(
         .ok_or(MathError::Overflow)?;
 
     if expo >= 0 {
+        if upper == 0 {
+            return Ok((0, 0));
+        }
+        // A nonzero price bound means the combined factor must itself fit
+        // a word, so every product stays in native word multiplies.
         let factor = *POW10
             .get(usize::try_from(expo).map_err(|_| MathError::Overflow)?)
             .ok_or(MathError::Overflow)?;
-        let scale_factor = factor
-            .checked_mul(u128::from(output_scale))
-            .ok_or(MathError::Overflow)?;
-        let lower = u128::from(lower)
-            .checked_mul(scale_factor)
-            .ok_or(MathError::Overflow)?;
-        let upper = upper.checked_mul(scale_factor).ok_or(MathError::Overflow)?;
-        return Ok((to_u64(lower)?, to_u64(upper)?));
+        let scale_factor = word_product(to_u64(factor)?, output_scale)?;
+        return Ok((
+            word_product(lower, scale_factor)?,
+            word_product(to_u64(upper)?, scale_factor)?,
+        ));
     }
 
     let magnitude = expo.unsigned_abs();
@@ -130,20 +170,33 @@ pub fn price_bounds_scaled(
     if let Ok(word) = u64::try_from(denominator) {
         if output_scale % word == 0 {
             let factor = output_scale / word;
-            let lower = lower.checked_mul(factor).ok_or(MathError::Overflow)?;
-            let upper = upper
-                .checked_mul(u128::from(factor))
-                .ok_or(MathError::Overflow)?;
-            return Ok((lower, to_u64(upper)?));
+            let lower = word_product(lower, factor)?;
+            let upper = word_product(to_u64(upper)?, factor)?;
+            return Ok((lower, upper));
         }
-        let divisor = FixedDivisor::new(word)?;
-        return Ok((
-            scaled_quotient_word(u128::from(lower), output_scale, &divisor, false)?,
-            scaled_quotient_word(upper, output_scale, &divisor, true)?,
-        ));
+        let (lower_quotient, _) = mul_div(lower, output_scale, word)?;
+        let upper = match u64::try_from(upper) {
+            Ok(upper) => {
+                let (quotient, remainder) = mul_div(upper, output_scale, word)?;
+                ceil_from_quotient_remainder(quotient, remainder)?
+            }
+            // Only a confidence-inflated bound beyond one word still needs
+            // the three-limb pipeline.
+            Err(_) => {
+                let divisor = FixedDivisor::new(word)?;
+                scaled_quotient_word(upper, output_scale, &divisor, true)?
+            }
+        };
+        return Ok((lower_quotient, upper));
     }
-    Ok((
-        scaled_quotient_wide(u128::from(lower), output_scale, denominator, false)?,
-        scaled_quotient_wide(upper, output_scale, denominator, true)?,
-    ))
+    // A beyond-word power of ten splits into two word factors, so the
+    // staged divider covers every word-sized price; the bit-serial walk
+    // survives only for a bound beyond one word.
+    let second = to_u64(denominator / POW10[19])?;
+    let lower = staged_quotient(lower, output_scale, to_u64(POW10[19])?, second, false)?;
+    let upper = match u64::try_from(upper) {
+        Ok(upper) => staged_quotient(upper, output_scale, to_u64(POW10[19])?, second, true)?,
+        Err(_) => scaled_quotient_wide(upper, output_scale, denominator, true)?,
+    };
+    Ok((lower, upper))
 }
