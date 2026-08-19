@@ -9,7 +9,9 @@ pub(crate) const fn widening_mul(a: u64, b: u64) -> (u64, u64) {
     let high_low = a_high * b_low;
     let high_high = a_high * b_high;
     let middle = (low_low >> 32) + (low_high & 0xffff_ffff) + (high_low & 0xffff_ffff);
-    let low = (middle << 32) | (low_low & 0xffff_ffff);
+    // The native multiply already returns the exact low word; the partial
+    // sums above survive only to produce the carry into the high word.
+    let low = a.wrapping_mul(b);
     let high = high_high + (low_high >> 32) + (high_low >> 32) + (middle >> 32);
     (high, low)
 }
@@ -28,6 +30,10 @@ pub(crate) const fn multiply_high_approx(a: u64, b: u64) -> u64 {
     a_high * b_high + ((a_high * b_low) >> 32) + ((a_low * b_high) >> 32)
 }
 
+// Dedicated squaring forms (three multiplies exact, two approximate)
+// were evaluated and declined: with equal operands the compiler already
+// merges the identical cross partials, so the explicit forms measured as
+// pure layout churn.
 #[inline(always)]
 const fn normalize_denominator(denominator: u64) -> (u64, u32) {
     let shift = denominator.leading_zeros();

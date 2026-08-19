@@ -61,20 +61,20 @@ the 128-by-64 divider. The wide column is why this crate exists.
 
 | function | narrow | wide | returns |
 |---|---:|---:|---|
-| `mul_div_floor(a, b, d)` | 11 | 106 | exact `⌊a·b/d⌋`; wide is measured over a top-bit-set divisor, and a divisor needing normalization costs ~140 |
-| `mul_div_ceil(a, b, d)` | 19 | 125 | exact `⌈a·b/d⌉` |
-| `isqrt(n)` | 147 | 255 | exact `⌊√n⌋` for any `u128`; wide is a 126-bit value |
-| `sqrt_floor(v, s)` | 176 | 283 | exact `⌊√(v·s)⌋` |
-| `sqrt_ceil(v, s)` | 186 | 293 | exact `⌈√(v·s)⌉` |
-| `exp2_lower(e, s)` / `exp2_upper(e, s)` | 197 / 221 | 255 / 277 | one-sided bounds on `2^(e/s)`, negative exponents included |
-| `log2_lower(v, s)` / `log2_upper(v, s)` | 376 / 408 | 388 / 420 | one-sided bounds on `log2(v/s)`, signed result |
-| `pow_lower(b, e, s)` / `pow_upper(b, e, s)` | 570 / 653 | 663 / 758 | one-sided bounds on `(b/s)^(e/s)`; exact integer exponents route to `powi` |
-| `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 113 / 186 | 793 / 883 | one-sided bounds on `(b/s)^n` by directed squaring; wide operands square in binary fixed point, paying the divider only at the seed and the projection |
-| `compound_lower(r, n, t, s)` / `compound_upper(r, n, t, s)` | 1 519 / 1 553 | 1 479 / 1 512 | one-sided bounds on `(1 + (r/s)/n)^t` |
-| `exp2_bounds(e, s)` | 397 | 449 | both exp2 bounds, one pass — bit-identical to the two calls, cheaper |
-| `log2_bounds(v, s)` | 611 | 633 | both log2 bounds, one pass |
-| `pow_bounds(b, e, s)` | 1 001 | 1 117 | both pow bounds, one pass |
-| `compound_bounds(r, n, t, s)` | 1 870 | 1 833 | both compound bounds, one pass |
+| `mul_div_floor(a, b, d)` | 11 | 102 | exact `⌊a·b/d⌋`; wide is measured over a top-bit-set divisor, and a divisor needing normalization costs ~140 |
+| `mul_div_ceil(a, b, d)` | 19 | 120 | exact `⌈a·b/d⌉` |
+| `isqrt(n)` | 142 | 249 | exact `⌊√n⌋` for any `u128`; wide is a 126-bit value |
+| `sqrt_floor(v, s)` | 167 | 276 | exact `⌊√(v·s)⌋` |
+| `sqrt_ceil(v, s)` | 177 | 286 | exact `⌈√(v·s)⌉` |
+| `exp2_lower(e, s)` / `exp2_upper(e, s)` | 193 / 217 | 250 / 274 | one-sided bounds on `2^(e/s)`, negative exponents included |
+| `log2_lower(v, s)` / `log2_upper(v, s)` | 381 / 413 | 394 / 426 | one-sided bounds on `log2(v/s)`, signed result |
+| `pow_lower(b, e, s)` / `pow_upper(b, e, s)` | 576 / 653 | 669 / 752 | one-sided bounds on `(b/s)^(e/s)`; exact integer exponents route to `powi` |
+| `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 113 / 186 | 788 / 877 | one-sided bounds on `(b/s)^n` by directed squaring; wide operands square in binary fixed point, paying the divider only at the seed and the projection |
+| `compound_lower(r, n, t, s)` / `compound_upper(r, n, t, s)` | 1499 / 1536 | 1459 / 1495 | one-sided bounds on `(1 + (r/s)/n)^t` |
+| `exp2_bounds(e, s)` | 387 | 443 | both exp2 bounds, one pass — bit-identical to the two calls, cheaper |
+| `log2_bounds(v, s)` | 609 | 633 | both log2 bounds, one pass |
+| `pow_bounds(b, e, s)` | 990 | 1104 | both pow bounds, one pass |
+| `compound_bounds(r, n, t, s)` | 1846 | 1809 | both compound bounds, one pass |
 
 
 ### `defi` — stateless recipes over primitive integers
@@ -85,19 +85,19 @@ identity, decimals, storage, and error conversion.
 | function | narrow | wide | returns |
 |---|---:|---:|---|
 | `fee::net_of_fee(amount, bps)` | 30 | 43 | `(net, fee)` with `net + fee == amount`, fee rounded against the payer |
-| `amm::quote_exact_in(rin, rout, in, bps)` | 68 | 166 | constant-product output, floored — the pool never over-pays |
-| `amm::quote_exact_out(rin, rout, out, bps)` | 69 | 336 | least input whose replay through `quote_exact_in` reaches `out` |
+| `amm::quote_exact_in(rin, rout, in, bps)` | 68 | 163 | constant-product output, floored — the pool never over-pays |
+| `amm::quote_exact_out(rin, rout, out, bps)` | 69 | 326 | least input whose replay through `quote_exact_in` reaches `out` |
 | `amm::initial_lp_shares_floor(a, b)` | 160 | 270 | `⌊√(a·b)⌋` bootstrap shares — never over-mints |
-| `lending::utilization_bps(borrowed, supplied)` | 16 | 142 | utilization in basis points, floored |
+| `lending::utilization_bps(borrowed, supplied)` | 16 | 137 | utilization in basis points, floored |
 | `lending::borrow_rate_bps(u, base, s1, s2, kink)` | 57 | 75 | two-leg kinked rate, ceiled — borrowers never underpay the curve |
 | `oracle::price_bounds_scaled(price, conf, expo, s)` | 224 | 637 | outward bounds on `(price ± conf)·10^expo`, floored at zero |
-| `schedule::vested_floor(total, start, cliff, dur, now)` | 26 | 171 | cliffed linear vesting, floored — never over-releases |
-| `schedule::linear_interp_floor(from, to, t, dur)` | 29 | 177 | clamped interpolation, below the true line |
-| `schedule::linear_interp_ceil(from, to, t, dur)` | 25 | 174 | clamped interpolation, above the true line |
-| `staking::reward_index_accrue_lower(i, r, staked, s)` | 30 | 181 | index accrual, floored |
-| `staking::reward_index_accrue_upper(i, r, staked, s)` | 39 | 202 | index accrual, ceiled |
-| `staking::reward_index_accrue(lo, hi, r, staked, s)` | 48 | 215 | both endpoints from one division |
-| `staking::rewards_owed_floor(staked, now, snap, s)` | 24 | 172 | rewards owed, floored — the pool never over-pays |
+| `schedule::vested_floor(total, start, cliff, dur, now)` | 26 | 167 | cliffed linear vesting, floored — never over-releases |
+| `schedule::linear_interp_floor(from, to, t, dur)` | 29 | 175 | clamped interpolation, below the true line |
+| `schedule::linear_interp_ceil(from, to, t, dur)` | 25 | 171 | clamped interpolation, above the true line |
+| `staking::reward_index_accrue_lower(i, r, staked, s)` | 30 | 175 | index accrual, floored |
+| `staking::reward_index_accrue_upper(i, r, staked, s)` | 39 | 198 | index accrual, ceiled |
+| `staking::reward_index_accrue(lo, hi, r, staked, s)` | 50 | 209 | both endpoints from one division |
+| `staking::rewards_owed_floor(staked, now, snap, s)` | 24 | 166 | rewards owed, floored — the pool never over-pays |
 
 ```rust
 use svm_math::defi::{amm, fee};

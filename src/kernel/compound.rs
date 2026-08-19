@@ -248,6 +248,7 @@ fn normalize_q61<const UPPER: bool>(value_q: u128) -> Normalized {
 #[inline(always)]
 fn mul_normalized<const UPPER: bool>(lhs: Normalized, rhs: Normalized) -> Normalized {
     let (high, low) = widening_mul(lhs.mantissa, rhs.mantissa);
+    let exponent = lhs.exponent.saturating_add(rhs.exponent);
     let (mantissa, inexact, carry) = if high >= 1 << 63 {
         (high, low != 0, 1)
     } else {
@@ -263,10 +264,7 @@ fn mul_normalized<const UPPER: bool>(lhs: Normalized, rhs: Normalized) -> Normal
     };
     Normalized {
         mantissa,
-        exponent: lhs
-            .exponent
-            .saturating_add(rhs.exponent)
-            .saturating_add(carry),
+        exponent: exponent.saturating_add(carry),
     }
 }
 
