@@ -14,9 +14,18 @@ pub(crate) const fn widening_mul(a: u64, b: u64) -> (u64, u64) {
     (high, low)
 }
 
+/// The top word of `a·b` from three partial products instead of four:
+/// dropping the low-by-low partial loses its carry into the top word and
+/// truncating each cross product loses its masked half's carry, so the
+/// result is `multiply_high(a, b) - e` with `e` in `{0, 1, 2}` — never
+/// above the exact word. Series terms whose slack absorbs two downward
+/// units use this; anything needing the exact word or the low word's
+/// bits (overflow checks, directed rounding, dividend words) does not.
 #[inline(always)]
-pub(crate) const fn multiply_high(a: u64, b: u64) -> u64 {
-    widening_mul(a, b).0
+pub(crate) const fn multiply_high_approx(a: u64, b: u64) -> u64 {
+    let (a_high, a_low) = (a >> 32, a & 0xffff_ffff);
+    let (b_high, b_low) = (b >> 32, b & 0xffff_ffff);
+    a_high * b_high + ((a_high * b_low) >> 32) + ((a_low * b_high) >> 32)
 }
 
 #[inline(always)]
@@ -32,6 +41,12 @@ pub(crate) fn div_rem_128_by_64(high: u64, low: u64, denominator: u64) -> (u64, 
         return (low / denominator, low % denominator);
     }
 
+    // A 128-by-32 schoolbook path for word-half divisors (two native
+    // divisions, no normalization) was evaluated and declined: through
+    // `mul_div` the narrow schoolbook branches already own every
+    // one-wide-operand small-divisor product, and the power-of-two and
+    // power-of-ten scale fast paths keep the transcendental entries out
+    // of this divider, so the branch measured as pure dispatch tax.
     // Knuth Algorithm D with 32-bit digits: on SBF a native division costs
     // about as much as any instruction, so two digit divisions with bounded
     // fixups beat reciprocal machinery built for targets where division is
@@ -177,7 +192,6 @@ impl FixedDivisor {
         if high == 0 {
             return (low / self.denominator, low % self.denominator);
         }
-
         let (n2, n10) = if self.shift == 0 {
             (high, low)
         } else {
@@ -324,6 +338,25 @@ mod tests {
                 let actual = widening_mul(u64::from(a), u64::from(b));
                 let product = u128::from(a) * u128::from(b);
                 assert_eq!(actual, ((product >> 64) as u64, product as u64));
+            }
+        }
+    }
+
+    #[test]
+    fn approximate_top_word_is_within_two_below_exact() {
+        let mut state = 0x6d68_6170_7072_6f78;
+        for _ in 0..1_000_000 {
+            let a = next_u64(&mut state);
+            let b = next_u64(&mut state);
+            let exact = super::widening_mul(a, b).0;
+            let approx = super::multiply_high_approx(a, b);
+            assert!(exact - approx <= 2, "a={a:#x} b={b:#x}");
+        }
+        for a in [0, 1, u64::MAX, 1 << 32, (1 << 32) - 1, u64::MAX << 32] {
+            for b in [0, 1, u64::MAX, 1 << 32, (1 << 32) - 1, u64::MAX << 32] {
+                let exact = super::widening_mul(a, b).0;
+                let approx = super::multiply_high_approx(a, b);
+                assert!(exact - approx <= 2, "a={a:#x} b={b:#x}");
             }
         }
     }

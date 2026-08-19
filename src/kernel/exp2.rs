@@ -1,6 +1,6 @@
 use crate::kernel::{
     scale::{project_binary_unsigned, scaled_signed_to_q, scaled_signed_to_q_bounds, Q},
-    wide::multiply_high,
+    wide::multiply_high_approx,
 };
 use crate::MathError;
 
@@ -113,16 +113,23 @@ pub(super) fn exp2_from_q<const UPPER: bool>(
     let index = (fraction_q64 >> 53) as usize;
     let residual = fraction_q64 << 11;
     let ln2 = if UPPER { LN2_Q64_UPPER } else { LN2_Q64_LOWER };
-    let y = multiply_high(residual, ln2);
-    let y2 = multiply_high(y, y) >> 11;
-    let y3 = multiply_high(y2, y) >> 11;
+    // Every series product takes the three-partial top word, which sits at
+    // most two units below the exact word. All its errors point down, so
+    // the lower series needs nothing; the upper compensations grow by the
+    // worst downward loss of each term: y loses at most 2 directly; y2 at
+    // most 5 before its shift (4y/2^64 from y's deficit squared, plus 2),
+    // one unit after; y3 likewise one unit after its shift; y4 inherits
+    // y2's unit at 2^26 granularity for at most 2 more units after /24.
+    let y = multiply_high_approx(residual, ln2);
+    let y2 = multiply_high_approx(y, y) >> 11;
+    let y3 = multiply_high_approx(y2, y) >> 11;
     // The quartic term needs only its top bits: truncating y2 to 26 bits
     // keeps the square in one native multiply with an error below 16 units
     // of y4 — an underestimate, so the lower series stays a lower bound,
-    // and 16/24 < 1 unit is covered by one extra upper slack unit.
+    // and the upper slack below covers it.
     let y4 = ((y2 >> 26) * (y2 >> 26)) >> 23;
     let series = if UPPER {
-        y + (y2 / 2 + 1) + (y3 / 6 + 1) + (y4 / 24 + 2) + 1_408
+        (y + 2) + (y2 / 2 + 2) + (y3 / 6 + 2) + (y4 / 24 + 4) + 1_408
     } else {
         y + y2 / 2 + y3 / 6 + y4 / 24
     };
@@ -131,9 +138,12 @@ pub(super) fn exp2_from_q<const UPPER: bool>(
     } else {
         EXP2_LOWER[index & 2047]
     };
-    let correction = multiply_high(base, series) >> 11;
+    // The correction's three-partial word is at most two under the exact
+    // one before the shift — one mantissa unit after — so the upper side
+    // carries one more unit than the exact-word budget did.
+    let correction = multiply_high_approx(base, series) >> 11;
     let (mantissa, carry0) = base.overflowing_add(correction);
-    let (mantissa, carry1) = mantissa.overflowing_add(if UPPER { 2 } else { 0 });
+    let (mantissa, carry1) = mantissa.overflowing_add(if UPPER { 3 } else { 0 });
     let (mantissa, integer) = if carry0 || carry1 {
         (
             (1_u64 << 63) + (mantissa >> 1) + u64::from(UPPER && mantissa & 1 != 0),

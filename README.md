@@ -66,15 +66,15 @@ the 128-by-64 divider. The wide column is why this crate exists.
 | `isqrt(n)` | 147 | 255 | exact `⌊√n⌋` for any `u128`; wide is a 126-bit value |
 | `sqrt_floor(v, s)` | 176 | 283 | exact `⌊√(v·s)⌋` |
 | `sqrt_ceil(v, s)` | 186 | 293 | exact `⌈√(v·s)⌉` |
-| `exp2_lower(e, s)` / `exp2_upper(e, s)` | 249 / 274 | 305 / 330 | one-sided bounds on `2^(e/s)`, negative exponents included |
-| `log2_lower(v, s)` / `log2_upper(v, s)` | 438 / 486 | 450 / 498 | one-sided bounds on `log2(v/s)`, signed result |
-| `pow_lower(b, e, s)` / `pow_upper(b, e, s)` | 678 / 777 | 771 / 876 | one-sided bounds on `(b/s)^(e/s)`; exact integer exponents route to `powi` |
-| `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 110 / 183 | 1 147 / 1 235 | one-sided bounds on `(b/s)^n` by directed squaring; every wide squaring step pays the full divider |
-| `compound_lower(r, n, t, s)` / `compound_upper(r, n, t, s)` | 1 568 / 1 604 | 1 528 / 1 563 | one-sided bounds on `(1 + (r/s)/n)^t` |
-| `exp2_bounds(e, s)` | 501 | 554 | both exp2 bounds, one pass — bit-identical to the two calls, cheaper |
-| `log2_bounds(v, s)` | 714 | 736 | both log2 bounds, one pass |
-| `pow_bounds(b, e, s)` | 1 211 | 1 324 | both pow bounds, one pass |
-| `compound_bounds(r, n, t, s)` | 1 975 | 1 938 | both compound bounds, one pass |
+| `exp2_lower(e, s)` / `exp2_upper(e, s)` | 197 / 221 | 255 / 277 | one-sided bounds on `2^(e/s)`, negative exponents included |
+| `log2_lower(v, s)` / `log2_upper(v, s)` | 376 / 408 | 388 / 420 | one-sided bounds on `log2(v/s)`, signed result |
+| `pow_lower(b, e, s)` / `pow_upper(b, e, s)` | 570 / 653 | 663 / 758 | one-sided bounds on `(b/s)^(e/s)`; exact integer exponents route to `powi` |
+| `powi_lower(b, n, s)` / `powi_upper(b, n, s)` | 113 / 186 | 793 / 883 | one-sided bounds on `(b/s)^n` by directed squaring; wide operands square in binary fixed point, paying the divider only at the seed and the projection |
+| `compound_lower(r, n, t, s)` / `compound_upper(r, n, t, s)` | 1 519 / 1 553 | 1 479 / 1 512 | one-sided bounds on `(1 + (r/s)/n)^t` |
+| `exp2_bounds(e, s)` | 397 | 449 | both exp2 bounds, one pass — bit-identical to the two calls, cheaper |
+| `log2_bounds(v, s)` | 611 | 633 | both log2 bounds, one pass |
+| `pow_bounds(b, e, s)` | 1 001 | 1 117 | both pow bounds, one pass |
+| `compound_bounds(r, n, t, s)` | 1 870 | 1 833 | both compound bounds, one pass |
 
 
 ### `defi` — stateless recipes over primitive integers

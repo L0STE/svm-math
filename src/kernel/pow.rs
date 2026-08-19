@@ -99,6 +99,17 @@ fn powi<const UPPER: bool>(mut base: u64, mut exponent: u64, scale: u64) -> Resu
     if exponent == 0 {
         return Ok(scale);
     }
+    // The first power is `base` exactly; the binary path's Q61 seed
+    // rounding could overflow the upper endpoint at the top of `u64`.
+    if exponent == 1 {
+        return Ok(base);
+    }
+    // Wide operands make every scale division below a full 128-by-64
+    // divide; the binary-squaring path pays that price only at its seed
+    // and projection, with a 2^-63 directed rounding per step between.
+    if base > u64::from(u32::MAX) || scale > u64::from(u32::MAX) {
+        return crate::kernel::compound::powi_binary::<UPPER>(base, exponent, scale);
+    }
     let divisor = FixedDivisor::new(scale)?;
     let mut result = scale;
     while exponent != 0 {

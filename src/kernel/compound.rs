@@ -167,6 +167,26 @@ fn binary_rate_q(annual_rate: u64, denominator: u128) -> (u128, bool) {
     }
 }
 
+/// `(base/scale)^exponent` through the same directed binary squaring as
+/// the beyond-domain compound path: one Q61 seed division, one directed
+/// `2^-63` rounding per step, one projection division — instead of a
+/// full 128-by-64 scale division on every squaring step.
+pub(crate) fn powi_binary<const UPPER: bool>(
+    base: u64,
+    exponent: u64,
+    scale: u64,
+) -> Result<u64, MathError> {
+    debug_assert!(scale != 0 && exponent != 0);
+    let (quotient, inexact) = binary_rate_q(base, u128::from(scale));
+    let base_q = quotient + u128::from(UPPER && inexact);
+    if base_q == 0 {
+        // base/scale < 2^-61 rounded down (or base is zero): every
+        // positive power of the seed floors to zero at any scale.
+        return Ok(0);
+    }
+    binary_power::<UPPER>(normalize_q61::<UPPER>(base_q), exponent, scale)
+}
+
 #[inline(always)]
 fn binary_power<const UPPER: bool>(
     mut base: Normalized,

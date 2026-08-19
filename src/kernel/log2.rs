@@ -1,6 +1,6 @@
 use crate::kernel::{
     scale::{normalize_unsigned_q63, normalize_unsigned_q63_bounds, project_signed_q, Q},
-    wide::{decimal_exponent, multiply_high, widening_mul},
+    wide::{decimal_exponent, multiply_high_approx, widening_mul},
 };
 use crate::MathError;
 
@@ -342,25 +342,33 @@ fn residual_legs(index: usize, residual: u64) -> (u64, u64) {
 
 #[inline(always)]
 fn fraction_assemble<const UPPER: bool>(index: usize, lower: u64, upper: u64) -> (u64, bool) {
+    // The series terms take the three-partial top word, at most two units
+    // below the exact word before each shift and one after. Every loss
+    // points down: terms that must stay below their true leg (the lower
+    // and subtracted-from-upper products) need nothing, and each term
+    // that must stay above its true leg carries one more padding unit
+    // than the exact-word budget did. The legs enter at 2^11 units and
+    // the smallest nonzero residual keeps the lower subtraction above
+    // two thousand units, so the paddings can never wrap it.
     let series = if UPPER {
-        let square_lower = multiply_high(lower, lower) >> 11;
-        let square_upper = (multiply_high(upper, upper) >> 11) + 1;
-        let cube_upper = (multiply_high(square_upper, upper) >> 11) + 1;
-        let fourth_lower = multiply_high(square_lower, square_lower) >> 11;
-        let fourth_upper = (multiply_high(square_upper, square_upper) >> 11) + 1;
-        let fifth_upper = (multiply_high(fourth_upper, upper) >> 11) + 1;
+        let square_lower = multiply_high_approx(lower, lower) >> 11;
+        let square_upper = (multiply_high_approx(upper, upper) >> 11) + 2;
+        let cube_upper = (multiply_high_approx(square_upper, upper) >> 11) + 2;
+        let fourth_lower = multiply_high_approx(square_lower, square_lower) >> 11;
+        let fourth_upper = (multiply_high_approx(square_upper, square_upper) >> 11) + 2;
+        let fifth_upper = (multiply_high_approx(fourth_upper, upper) >> 11) + 2;
         upper - square_lower / 2 + (cube_upper / 3 + 1) - fourth_lower / 4 + (fifth_upper / 5 + 1)
     } else {
-        let square_lower = multiply_high(lower, lower) >> 11;
-        let square_upper = (multiply_high(upper, upper) >> 11) + 1;
-        let cube_lower = multiply_high(square_lower, lower) >> 11;
-        let fourth_upper = (multiply_high(square_upper, square_upper) >> 11) + 1;
+        let square_lower = multiply_high_approx(lower, lower) >> 11;
+        let square_upper = (multiply_high_approx(upper, upper) >> 11) + 2;
+        let cube_lower = multiply_high_approx(square_lower, lower) >> 11;
+        let fourth_upper = (multiply_high_approx(square_upper, square_upper) >> 11) + 2;
         lower - (square_upper / 2 + 1) - (fourth_upper / 4 + 1) + cube_lower / 3
     };
     let residual_log = if UPPER {
-        (multiply_high(series, LOG2E_Q63_UPPER) >> 10) + 1
+        (multiply_high_approx(series, LOG2E_Q63_UPPER) >> 10) + 2
     } else {
-        multiply_high(series, LOG2E_Q63_LOWER) >> 10
+        multiply_high_approx(series, LOG2E_Q63_LOWER) >> 10
     };
     let base = if index == 0 {
         0

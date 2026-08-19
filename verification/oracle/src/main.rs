@@ -504,6 +504,7 @@ fn check_powi(stats: &mut Stats, failures: &mut Vec<String>) {
         65_535,
         1_000_000,
         u64::from(u32::MAX),
+        1_000_000_000_000_000_000,
         u64::MAX,
     ];
     let mut state = 0x504f_5749_4f52_4143;
